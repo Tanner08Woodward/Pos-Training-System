@@ -6,6 +6,10 @@ let change = 0
 let discountAmount = 0;
 let totalPaid = 0;
 
+// Index of the order line the trainee tapped (highlighted), or null.
+// Like the real register: tap a line, then press Delete Item.
+let selectedLine = null;
+
 const TAX_RATE = 0.0825;
 
 // --- Training: action recording (Milestone 1) ---------------------------
@@ -198,11 +202,16 @@ function updateOrderDisplay() {
   const list = document.getElementById("order-list");
   list.innerHTML = "";
 
+  // A highlighted line only stays valid while it still exists.
+  if (selectedLine !== null && selectedLine >= currentOrder.length) selectedLine = null;
+
   let subtotal = 0;
-  currentOrder.forEach(item => {
+  currentOrder.forEach((item, index) => {
     const price = prices[item] || 3.0;
     const li = document.createElement("li");
     li.innerText = `${item} - $${price.toFixed(2)}`;
+    if (index === selectedLine) li.classList.add("selected");
+    li.onclick = () => selectLine(index);
     list.appendChild(li);
     subtotal += price;
   });
@@ -273,6 +282,26 @@ function deleteLastItem() {
     track("delete_on_empty_order", {});
   }
   currentOrder.pop();
+  updateOrderDisplay();
+}
+
+// Tap an order line to highlight it; tap it again to un-highlight.
+function selectLine(index) {
+  selectedLine = (selectedLine === index) ? null : index;
+  track("line_selected", { item: currentOrder[index], line: index + 1, selected: selectedLine !== null });
+  updateOrderDisplay();
+}
+
+// Delete the highlighted line (any line, not just the last one).
+function deleteSelectedItem() {
+  if (selectedLine === null) {
+    track("delete_without_selection", {});
+    return;
+  }
+  const index = selectedLine;
+  track("item_removed", { item: currentOrder[index], line: index + 1, method: "delete_selected" });
+  currentOrder.splice(index, 1);
+  selectedLine = null;
   updateOrderDisplay();
 }
 
