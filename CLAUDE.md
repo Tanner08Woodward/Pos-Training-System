@@ -30,7 +30,10 @@ Keep two ideas separate (without over-engineering):
 - **Business configuration** (Handel's-specific): register layout (`menuItems`), `prices`, and register rules. It currently lives in `script.js` and may move to its own data file later.
 
 Files:
-- `index.html`: **Training Lab** (hub). Trainee enters first name + last initial; links to Playground, Challenges, Manager.
+- `index.html`: **Training Lab** (hub). Trainee enters first name + last initial; links to Training lessons, Playground, Challenges, Study Guide, Manager.
+- `guide.html`: register Study Guide (from the Handel's study guide + onboarding packet), each section links to its lesson.
+- `config.js`: public Supabase URL + anon key. `supabase/schema.sql`: one-time database setup (run in Supabase SQL Editor; RLS on, website can only call save_attempt / manager_attempts / manager_clear).
+- `engine/coach.js` + `lessons/handels.js`: Training mode (`?mode=lesson&lesson=<id>`). Steps with targets; the next button glows after 5s idle or a wrong tap, tip bubble after 10s / 2 wrong / "Show me". Wrong item → inserted "fix it" steps; order knocked off track → restart at checkpoint.
 - `register.html`: the Handel's register (moved from the old `index.html`; layout unchanged). `?mode=playground` or `?mode=challenge&scenario=<id>`. Logout returns to the hub.
 - `style.css`: register look. Always 6 columns; row height scales with screen height so iPhone/iPad/computer match the real layout.
 - `script.js`: the Handel's register. `menuItems` holds each category's buttons in grid order; `" "`/`""` entries are intentional spacers that hold real-register positions and must be preserved. `currentOrder` is an array of item-name strings (read it from other files with `getOrder()`).
@@ -38,16 +41,17 @@ Files:
 - `training.css`: Challenge customer card + start/results dialogs (kept out of `style.css`).
 - `engine/challenge.js`: runs a Challenge: Start screen, customer lines, reveals changes only after the current order is rung correctly (or PAY is opened), scores and saves on completion.
 - `engine/scoring.js`: deterministic scoring from the action log (order 50, payment 20, corrections 15, speed 15; pass = right order + right payment + 80+).
-- `engine/storage.js`: saves trainee + attempts. **localStorage for now (this device only)**; swap for Supabase here only.
+- `engine/storage.js`: saves trainee + attempts on the device AND sends them to Supabase (retries unsent ones on next page load). Manager reads all devices with the manager code.
 - `scenarios/handels.js`: Challenge orders as data + `itemInfo` (size / product / add-on) for Handel's.
-- `manager.html` + `hub.css`: manager results: trainees, readiness, common mistakes, attempts, step-by-step replay, JSON export.
+- `manager.html` + `hub.css`: manager dashboard (code sign-in): KPIs, needs-attention list with suggested lesson, trainee progress (lessons + challenges), team problem areas, per-trainee score trend, step-by-step replay. Ready = all lessons done + all challenges passed.
 - `tests/`: automated tests (`cd tests && npm install && npm test`). Not part of the site.
 
 ## Milestones
 - **M0 (done):** original register copied unchanged from production.
 - **M1 (done):** action recording. Every register action calls `track(type, data)`, which records `{seq, type, t (ms since session start), at, data, context}`; `context` is the register state just before the action. Event types: session_started, category_opened, item_added (with priceFallback flag), empty_slot_tapped, item_removed, order_cleared, delete_on_empty_order, discount_applied, discount_cancelled, screen_opened, screen_closed, tender_applied (method: cash_button/exact/nearest/custom/pinpad), custom_amount_invalid, transaction_completed (trigger), order_started (reason). Verified that register behavior is identical to the original.
 - **M2 (done):** Delete Item (tap to highlight one or more lines; with none highlighted it deletes the last line; Delete Last Item removed). Same 6-column layout on all devices. Training Lab hub, Playground, Challenge Mode with 6 Handel's scenarios (incl. change-of-mind), scoring, trainee name, saved results, manager page with replay.
-- **Next:** shared database (Supabase) so managers see every device's results; manager PIN/login; expert baseline times for `targetSeconds`; more scenarios (discounts, callouts); readiness benchmark (default pass = 80%, owner-adjustable).
+- **M3 (done):** Supabase shared database (tested against local PostgreSQL), Training mode with glowing hints (7 lessons), Study Guide, redesigned manager dashboard.
+- **Next:** voice (browser speech first: customer speaks, trainee calls out the order); expert baseline times for `targetSeconds`; more scenarios; real manager logins; readiness benchmark owner-adjustable.
 
 ## Known bugs (verified, not yet fixed; behavior matters more than prices right now)
 - `prices[item] || 3.0` charges $3.00 for any item priced 0 (Gift Card Sold, Gift Card Reload, Holiday Card Sold, Catering, DoorDash, Misc. Item, Dipped Waffle Bowl) and for ~19 unpriced items (Kid's Cone, Dipped Kid's Cone, Kid's Dipped Cone, Turtle Sundae, Boston Cooler, Freeze, Bottle Water, Soft Drink, Extra Waffle Cone/Bowl, Mixed Nuts, Pecans, Apple Dumpling w/o IC, Check Gift Card Ballence, Handel's Coin Sold, Pint Card Sold, Gift Certificate Sold, Hat, T Shirt).
