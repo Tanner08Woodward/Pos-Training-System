@@ -1,0 +1,7 @@
+{
+  "name": "pos-training-tests",
+  "private": true,
+  "description": "Automated tests. Not part of the website (the site has no build step).",
+  "scripts": { "test": "node --test" },
+  "devDependencies": { "jsdom": "^24.1.3" }
+}
