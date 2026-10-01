@@ -42,11 +42,20 @@ var Tracker = (() => {
     };
     session.events.push(event);
     if (typeof Debug !== "undefined") Debug.refresh();
+    listeners.forEach(fn => {
+      try { fn(event); } catch (err) { console.error("Tracker listener failed:", err); }
+    });
     return event;
   }
 
+  // Other parts of the training engine (e.g. Challenge Mode) can react to
+  // each action as it happens.
+  const listeners = [];
+  function onRecord(fn) { listeners.push(fn); }
+
   return {
     record,
+    onRecord,
     getSession: () => session,
     getEvents: () => session.events.slice(),
     toJSON: () => JSON.stringify(session, null, 2),

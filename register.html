@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Handel's POS</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="training.css" />
+</head>
+<body>
+  <!-- Top Row Tabs -->
+  <div class="top-bar">
+    <button onclick="startNewOrder()">New Order</button>
+    <button onclick="showScreen('discount')">Discount</button>
+    <button onclick="showScreen('manager-screen')">Manager</button>
+    <button>Employee</button>
+    <button>Future Orders</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <!-- Main POS Screen -->
+  <div class="pos-container">
+    <!-- Left Order Panel -->
+    <div class="order-panel">
+      <div>
+        <h2>New Order</h2>
+        <div id="customer-card" hidden></div>
+        <ul id="order-list"></ul>
+      </div>
+      <div class="totals">
+        <p>Subtotal: $<span id="subtotal">0.00</span></p>
+        <p>Tax: $<span id="tax">0.00</span></p>
+        <p><strong>Total: $<span id="total">0.00</span></strong></p>
+      </div>
+    </div>
+
+    <!-- Center Menu Items + All Screens -->
+    <div class="center-panel">
+      <div id="menu-buttons" class="menu-grid"></div>
+
+      <div id="screen-wrapper">
+        <!-- PAYMENT SCREEN -->
+        <div id="payment" class="screen">
+          <h2>Payment</h2>
+          <p><strong>Amount Due: $<span id="payment-total">0.00</span></strong></p>
+
+          <div class="payment-buttons">
+            <button onclick="applyPayment(1)">$1</button>
+            <button onclick="applyPayment(5)">$5</button>
+            <button onclick="applyPayment(10)">$10</button>
+            <button onclick="applyPayment(20)">$20</button>
+            <button id="exact-btn" onclick="payExact()">Exact</button>
+            <button id="nearest-btn" onclick="payNearest()">Nearest</button>
+          </div>
+
+          <div class="payment-buttons">
+            <input type="number" id="custom-amount" placeholder="Custom $" />
+            <button onclick="payCustom()">Enter</button>
+            <button id="pinpad-btn">Pay with Pinpad</button>
+          </div>
+
+          <p>Paid: $<span id="amount-paid">0.00</span></p>
+          <p><strong>Change: $<span id="change">0.00</span></strong></p>
+          <button id="complete-btn" class="pay" onclick="completeTransaction()">Complete Transaction</button>
+          <button class="back" onclick="hideScreen('payment')">Back</button>
+        </div>
+
+        <!-- DISCOUNT SCREEN -->
+        <div id="discount" class="screen">
+          <h2>Discount</h2>
+          <div class="discount-grid">
+            <button onclick="applyPercentDiscount()">% Discount</button>
+            <button onclick="applyFlatDiscount()">$ Discount</button>
+          </div>
+          <button class="back" onclick="hideScreen('discount')">Back</button>
+        </div>
+
+        <!-- MANAGER SCREEN -->
+        <div id="manager-screen" class="screen">
+          <h2>Manager Options</h2>
+          <div class="manager-grid">
+            <button class="red" onclick="deleteSelectedItem()">Delete Item</button>
+            <button class="red" onclick="clearOrder()">Delete All</button>
+          </div>
+          <button class="back" onclick="hideScreen('manager-screen')">Back</button>
+        </div>
+      </div>
+    </div>  
+    <!-- Right Category Column -->
+    <div class="category-panel">
+      <button class="red" onclick="loadCategory('main')">Main Menu</button>
+      <button onclick="loadCategory('cones')">Cones and Dishes</button>
+      <button onclick="loadCategory('pints')">Pints and Quarts</button>
+      <button onclick="loadCategory('sundaes')">Sundaes</button>
+      <button onclick="loadCategory('shakes')">Shakes and Drinks</button>
+      <button onclick="loadCategory('hurricanes')">Hurricanes</button>
+      <button onclick="loadCategory('novelties')">Novelties</button>
+      <button onclick="loadCategory('extras')">Extras</button>
+      <button onclick="loadCategory('giftcards')">Gift Cards and Merch.</button>
+      <button onclick="loadCategory('catering')">Catering and Misc.</button>
+      <button class="pay" onclick="showScreen('payment')">PAY / CLOSE ORDER</button>
+    </div>
+  </div>
+
+  <div id="rotate-warning" style="display: none; position: fixed; top: 0; left: 0; background: #fff; color: #000; width: 100vw; height: 100vh; z-index: 9999; justify-content: center; align-items: center; text-align: center; padding: 2rem;">
+    <p>Please rotate your phone to landscape mode for the best POS experience.</p>
+  </div>
+
+  <script>
+    function checkOrientation() {
+      const warning = document.getElementById("rotate-warning");
+      // Only show warning if screen width is <= 768px AND in portrait mode
+      if (window.innerWidth <= 768 && window.innerWidth < window.innerHeight) {
+        warning.style.display = "flex";
+      } else {
+        warning.style.display = "none";
+      }
+    }
+    window.addEventListener("resize", checkOrientation);
+    window.addEventListener("load", checkOrientation);
+  </script>
+
+
+  <script src="tracker.js"></script>
+  <script src="script.js"></script>
+  <!-- Training engine (Challenge Mode). The register above works without it. -->
+  <script src="engine/storage.js"></script>
+  <script src="engine/scoring.js"></script>
+  <script src="scenarios/handels.js"></script>
+  <script src="engine/challenge.js"></script>
+</body>
+</html>

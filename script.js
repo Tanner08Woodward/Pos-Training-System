@@ -126,8 +126,13 @@ const prices = {
   "Dipped Kids Cone": 4.75
 };
 
+// True while a paid sale is about to finish, so rapid taps on cash buttons
+// or the pinpad can't complete the same sale twice.
+let completionPending = false;
+
 function startNewOrder(reason = "new_order_button") {
   track("order_started", { reason });
+  completionPending = false;
   currentOrder = [];
   totalPaid = 0;
   discountAmount = 0;
@@ -236,7 +241,8 @@ function applyPayment(amount, method = "cash_button") {
   const change = totalPaid - currentTotal;
   document.getElementById("change").innerText = change > 0 ? change.toFixed(2) : "0.00";
 
-  if (totalPaid >= currentTotal) {
+  if (totalPaid >= currentTotal && !completionPending) {
+    completionPending = true;
     setTimeout(() => {
       alert(`Transaction complete! Change: $${change.toFixed(2)}`);
       completeTransaction("auto_after_payment");
@@ -263,6 +269,8 @@ function payCustom() {
 }
 
 function completeTransaction(trigger = "complete_button") {
+  // A paid sale is already finishing; don't finish it a second time.
+  if (trigger === "complete_button" && completionPending) return;
   track("transaction_completed", {
     trigger,
     items: currentOrder.slice(),
@@ -332,6 +340,8 @@ function applyFlatDiscount() {
 }
 
 document.getElementById("pinpad-btn").addEventListener("click", () => {
+  if (completionPending) return;
+  completionPending = true;
   track("tender_applied", { method: "pinpad", amount: Math.round(currentTotal * 100) / 100, paidBefore: Math.round(totalPaid * 100) / 100 });
   // Optional: simulate delay for processing
   setTimeout(() => {
@@ -342,5 +352,16 @@ document.getElementById("pinpad-btn").addEventListener("click", () => {
 
 hideScreens();
 loadCategory("main", false);
-track("session_started", { register: "handels", version: "m1" });
+// Lets the training engine read the order without changing it.
+function getOrder() {
+  return currentOrder.slice();
+}
+
+// Logout returns to the Training Lab (the hub).
+function logout() {
+  track("logout", {});
+  window.location.href = "index.html";
+}
+
+track("session_started", { register: "handels", version: "m2" });
 

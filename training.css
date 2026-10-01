@@ -1,0 +1,87 @@
+/* training.css: Challenge Mode pieces drawn on top of the register.
+   Kept separate from style.css so the register's own look stays untouched. */
+
+/* Customer card (in the order panel, under "New Order") */
+#customer-card {
+  background: #fdf6e3;
+  color: #222;
+  border-left: 5px solid #f0c040;
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+  max-height: 35vh;
+  overflow-y: auto;
+}
+#customer-card[hidden] { display: none; }
+#customer-card .cc-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #8a6d00;
+  margin-bottom: 2px;
+}
+#customer-card p { margin: 4px 0; color: #777; }
+#customer-card p.cc-new { color: #000; font-weight: bold; }
+#customer-card.cc-flash { animation: cc-flash 0.9s ease-out; }
+@keyframes cc-flash {
+  0% { background: #f0c040; }
+  100% { background: #fdf6e3; }
+}
+@media (max-height: 500px) {
+  #customer-card { font-size: 0.7rem; padding: 4px 6px; }
+}
+
+/* Start / results dialog */
+#ch-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+#ch-modal .ch-box {
+  background: #fff;
+  color: #222;
+  border-radius: 8px;
+  padding: 20px 24px;
+  width: min(520px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  font-family: Arial, sans-serif;
+}
+#ch-modal h2 { margin: 4px 0 10px; font-size: 1.6rem; }
+#ch-modal p { margin: 8px 0; line-height: 1.4; }
+.ch-kicker { text-transform: uppercase; font-size: 0.75rem; font-weight: bold; color: #2852a8; margin: 0 !important; }
+.ch-muted { color: #666; font-size: 0.9rem; }
+.ch-pass { color: #1a7f2e; }
+.ch-fail { color: #b3261e; }
+.ch-score { font-size: 3rem; font-weight: bold; line-height: 1; }
+.ch-score span { font-size: 1.2rem; color: #888; }
+.ch-points { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.ch-points span { background: #eef2fb; border-radius: 4px; padding: 3px 8px; font-size: 0.8rem; }
+.ch-feedback { list-style: none; padding: 0; margin: 10px 0; }
+.ch-feedback li { padding: 4px 0; border-bottom: 1px solid #eee; font-size: 0.95rem; }
+.ch-feedback li.ok { color: #1a7f2e; }
+.ch-feedback li.bad { color: #b3261e; }
+.ch-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #f6f6f6; padding: 8px; border-radius: 4px; font-size: 0.9rem; }
+.ch-compare strong { display: block; margin-bottom: 4px; }
+.ch-tip { background: #fdf6e3; border-left: 4px solid #f0c040; padding: 6px 8px; }
+.ch-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+.ch-actions button {
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 5px;
+  background: #5d6d7e;
+  color: #fff;
+  cursor: pointer;
+}
+.ch-actions .ch-primary { background: green; }
+.ch-link { color: #2852a8; font-weight: bold; }

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manager Results</title>
+  <link rel="stylesheet" href="hub.css" />
+</head>
+<body>
+  <header class="hub-top">
+    <h1>MANAGER</h1>
+    <a href="index.html">Training Lab</a>
+  </header>
+
+  <main class="hub-main" id="app"></main>
+
+  <script src="engine/storage.js"></script>
+  <script src="engine/scoring.js"></script>
+  <script src="scenarios/handels.js"></script>
+  <script>
+    // Manager results page. Reads saved Challenge attempts (engine/storage.js).
+    // Three views: all trainees -> one trainee -> one attempt (with replay).
+
+    const app = document.getElementById("app");
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const avg = arr => arr.length ? arr.reduce((s, n) => s + n, 0) / arr.length : 0;
+    const when = iso => new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+    const MISTAKE_LABELS = {
+      wrong_size: "Wrong size",
+      wrong_type: "Wrong cone/cup type",
+      missed_addon: "Missed add-on",
+      missing_item: "Missing item",
+      extra_item: "Extra item rung",
+      no_payment: "No payment taken",
+      wrong_payment_method: "Wrong payment method",
+      wrong_tender_amount: "Wrong cash amount",
+      extra_deletes: "Unnecessary deletes",
+      slow: "Slower than goal",
+    };
+    const label = code => MISTAKE_LABELS[code] || code;
+    const CATEGORY_NAMES = {
+      main: "Main Menu", cones: "Cones and Dishes", pints: "Pints and Quarts", sundaes: "Sundaes",
+      shakes: "Shakes and Drinks", hurricanes: "Hurricanes", novelties: "Novelties", extras: "Extras",
+      giftcards: "Gift Cards and Merch.", catering: "Catering and Misc.",
+    };
+
+    function groupByTrainee(attempts) {
+      const map = new Map();
+      attempts.forEach(a => {
+        if (!a.trainee) return;
+        if (!map.has(a.trainee.id)) map.set(a.trainee.id, { trainee: a.trainee, attempts: [] });
+        map.get(a.trainee.id).attempts.push(a);
+      });
+      return [...map.values()];
+    }
+
+    function mistakeCounts(attempts) {
+      const counts = {};
+      attempts.forEach(a => (a.mistakes || []).forEach(m => { counts[m.code] = (counts[m.code] || 0) + 1; }));
+      return Object.entries(counts).sort((x, y) => y[1] - x[1]);
+    }
+
+    function passedScenarios(attempts) {
+      return Scenarios.list.filter(s => attempts.some(a => a.scenarioId === s.id && a.passed));
+    }
+
+    function readiness(attempts) {
+      const n = passedScenarios(attempts).length;
+      const total = Scenarios.list.length;
+      return n === total
+        ? `<span class="badge ready">Ready to try live register</span>`
+        : `<span class="badge">${n} of ${total} passed</span>`;
+    }
+
+    function bars(counts, totalAttempts) {
+      if (!counts.length) return `<p class="muted">No mistakes recorded.</p>`;
+      const max = counts[0][1];
+      return `<ul class="bars">${counts.map(([code, n]) => `
+        <li><span>${esc(label(code))}</span>
+            <span class="bar" style="width:${Math.max(4, (n / max) * 100)}%"></span>
+            <span class="num">${n} of ${totalAttempts} attempts</span></li>`).join("")}</ul>`;
+    }
+
+    // ---- View 1: all trainees ------------------------------------------
+    function showOverview() {
+      const attempts = Storage.listAttempts();
+      const groups = groupByTrainee(attempts);
+      const passRate = attempts.length ? Math.round(100 * attempts.filter(a => a.passed).length / attempts.length) : 0;
+
+      app.innerHTML = `
+        <section class="panel">
+          <p class="muted" style="margin-top:0">Results saved on <strong>this device</strong>. A shared database (so you can see every store from your own phone) is the next step.</p>
+          <div class="stat-row">
+            <div class="stat"><div class="v">${groups.length}</div><div class="l">Trainees</div></div>
+            <div class="stat"><div class="v">${attempts.length}</div><div class="l">Challenge attempts</div></div>
+            <div class="stat"><div class="v">${passRate}%</div><div class="l">Attempts passed</div></div>
+            <div class="stat"><div class="v">${groups.filter(g => passedScenarios(g.attempts).length === Scenarios.list.length).length}</div><div class="l">Ready for live register</div></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Trainees</h2>
+          ${groups.length ? `
+          <div class="table-wrap"><table>
+            <thead><tr><th>Trainee</th><th>Readiness</th><th class="num">Attempts</th><th class="num">Avg score</th><th class="num">Avg time</th><th>Biggest problem</th><th>Last practiced</th></tr></thead>
+            <tbody>${groups.map((g, i) => {
+              const top = mistakeCounts(g.attempts)[0];
+              const last = g.attempts[g.attempts.length - 1];
+              return `<tr class="clickable" data-i="${i}">
+                <td><strong>${esc(g.trainee.name)}</strong></td>
+                <td>${readiness(g.attempts)}</td>
+                <td class="num">${g.attempts.length}</td>
+                <td class="num">${Math.round(avg(g.attempts.map(a => a.score)))}</td>
+                <td class="num">${avg(g.attempts.map(a => a.seconds)).toFixed(1)}s</td>
+                <td>${top ? esc(label(top[0])) : "None"}</td>
+                <td>${when(last.finishedAt)}</td></tr>`;
+            }).join("")}</tbody>
+          </table></div>` : `<p class="muted">No challenge attempts yet. Trainees enter their name in the Training Lab and play a Challenge.</p>`}
+        </section>
+
+        <section class="panel">
+          <h2>Most common mistakes (all trainees)</h2>
+          ${bars(mistakeCounts(attempts), attempts.length)}
+        </section>
+
+        <section class="panel">
+          <h2>Data</h2>
+          <button class="btn gray small" id="export">Download results (JSON)</button>
+          <button class="btn red small" id="clear">Delete all results on this device</button>
+        </section>`;
+
+      app.querySelectorAll("tr.clickable").forEach(tr => tr.onclick = () => showTrainee(groups[+tr.dataset.i].trainee.id));
+      document.getElementById("export").onclick = exportJSON;
+      document.getElementById("clear").onclick = () => {
+        if (confirm("Delete ALL challenge results saved on this device? This can't be undone.")) {
+          Storage.clearAttempts();
+          showOverview();
+        }
+      };
+      window.scrollTo(0, 0);
+    }
+
+    // ---- View 2: one trainee -------------------------------------------
+    function showTrainee(traineeId) {
+      const g = groupByTrainee(Storage.listAttempts()).find(x => x.trainee.id === traineeId);
+      if (!g) return showOverview();
+      const attempts = g.attempts;
+      const recent = attempts.slice().reverse();
+
+      app.innerHTML = `
+        <a class="back-link" id="back">← All trainees</a>
+        <section class="panel">
+          <h2>${esc(g.trainee.name)} ${readiness(attempts)}</h2>
+          <div class="stat-row">
+            <div class="stat"><div class="v">${attempts.length}</div><div class="l">Attempts</div></div>
+            <div class="stat"><div class="v">${Math.round(avg(attempts.map(a => a.score)))}</div><div class="l">Avg score</div></div>
+            <div class="stat"><div class="v">${avg(attempts.map(a => a.seconds)).toFixed(1)}s</div><div class="l">Avg time</div></div>
+            <div class="stat"><div class="v">${passedScenarios(attempts).length}/${Scenarios.list.length}</div><div class="l">Challenges passed</div></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Challenges</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Challenge</th><th>Status</th><th class="num">Tries</th><th class="num">First score</th><th class="num">Best score</th><th class="num">Best time</th></tr></thead>
+            <tbody>${Scenarios.list.map(s => {
+              const tries = attempts.filter(a => a.scenarioId === s.id);
+              if (!tries.length) return `<tr><td>${esc(s.title)}</td><td><span class="badge">Not tried</span></td><td class="num">0</td><td></td><td></td><td></td></tr>`;
+              const passed = tries.some(a => a.passed);
+              return `<tr><td>${esc(s.title)}</td>
+                <td><span class="badge ${passed ? "pass" : "fail"}">${passed ? "Passed" : "Not yet"}</span></td>
+                <td class="num">${tries.length}</td>
+                <td class="num">${tries[0].score}</td>
+                <td class="num">${Math.max(...tries.map(a => a.score))}</td>
+                <td class="num">${Math.min(...tries.map(a => a.seconds)).toFixed(1)}s</td></tr>`;
+            }).join("")}</tbody>
+          </table></div>
+        </section>
+
+        <section class="panel">
+          <h2>What ${esc(g.trainee.name)} struggles with</h2>
+          ${bars(mistakeCounts(attempts), attempts.length)}
+        </section>
+
+        <section class="panel">
+          <h2>All attempts (newest first)</h2>
+          <div class="table-wrap"><table>
+            <thead><tr><th>When</th><th>Challenge</th><th class="num">Score</th><th>Result</th><th class="num">Time</th><th>Mistakes</th></tr></thead>
+            <tbody>${recent.map(a => `
+              <tr class="clickable" data-id="${esc(a.id)}">
+                <td>${when(a.finishedAt)}</td>
+                <td>${esc(a.scenarioTitle)}</td>
+                <td class="num">${a.score}</td>
+                <td><span class="badge ${a.passed ? "pass" : "fail"}">${a.passed ? "Pass" : "Fail"}</span></td>
+                <td class="num">${a.seconds.toFixed(1)}s</td>
+                <td>${a.mistakes.length ? a.mistakes.map(m => esc(label(m.code))).join(", ") : "None"}</td>
+              </tr>`).join("")}</tbody>
+          </table></div>
+        </section>`;
+
+      document.getElementById("back").onclick = showOverview;
+      app.querySelectorAll("tr.clickable").forEach(tr => tr.onclick = () => showAttempt(tr.dataset.id));
+      window.scrollTo(0, 0);
+    }
+
+    // ---- View 3: one attempt, with step-by-step replay -------------------
+    function describe(e) {
+      const d = e.data || {};
+      switch (e.type) {
+        case "challenge_started": return ["", "Tapped Start"];
+        case "customer_said": return ["say", `Customer: “${d.text}”`];
+        case "category_opened": return ["", `Opened ${CATEGORY_NAMES[d.category] || d.category}`];
+        case "item_added": return ["", `Rang ${d.item}`];
+        case "line_selected": return ["", `${d.selected ? "Highlighted" : "Un-highlighted"} line ${d.line} (${d.item})`];
+        case "item_removed": return ["bad", `Deleted ${d.item}${d.method === "delete_last" ? " (last line)" : ""}`];
+        case "order_cleared": return ["bad", `Delete All (${d.itemsRemoved.length} items)`];
+        case "delete_on_empty_order": return ["bad", "Pressed Delete on an empty order"];
+        case "empty_slot_tapped": return ["bad", "Tapped an empty spot"];
+        case "screen_opened": return ["", `Opened ${d.screen === "manager-screen" ? "Manager" : d.screen} screen`];
+        case "screen_closed": return ["", `Closed ${d.screen === "manager-screen" ? "Manager" : d.screen} screen`];
+        case "discount_applied": return ["", `Discount ${d.kind === "percent" ? d.percent + "%" : "$" + d.amount}`];
+        case "tender_applied": return ["pay", d.method === "pinpad" ? "Pay with Pinpad" : `Entered $${Number(d.amount).toFixed(2)} cash (${d.method.replace("_button", "")})`];
+        case "custom_amount_invalid": return ["bad", "Invalid custom amount"];
+        case "transaction_completed": return ["pay", `Sale completed: total $${d.total.toFixed(2)}, paid $${d.paid.toFixed(2)}, change $${d.change.toFixed(2)}`];
+        case "order_started": return ["", "New order"];
+        default: return ["", e.type];
+      }
+    }
+
+    function showAttempt(id) {
+      const a = Storage.listAttempts().find(x => x.id === id);
+      if (!a) return showOverview();
+      const t0 = a.events.length ? a.events[0].t : 0;
+      const doneIdx = a.events.findIndex(e => e.type === "transaction_completed");
+      const shown = doneIdx === -1 ? a.events : a.events.slice(0, doneIdx + 1);
+
+      app.innerHTML = `
+        <a class="back-link" id="back">← ${esc(a.trainee.name)}</a>
+        <section class="panel">
+          <h2>${esc(a.scenarioTitle)}: <span class="${a.passed ? "ch-pass" : "ch-fail"}" style="color:${a.passed ? "#1a7f2e" : "#b3261e"}">${a.passed ? "Passed" : "Not yet"}</span>, ${a.score}/100</h2>
+          <p class="muted">${esc(a.trainee.name)} · ${when(a.finishedAt)} · ${a.seconds.toFixed(1)}s
+            · Order ${a.points.accuracy}/50 · Payment ${a.points.payment}/20 · Corrections ${a.points.corrections}/15 · Speed ${a.points.speed}/15</p>
+          <ul class="feedback">${a.feedback.map(f => `<li class="${f.ok ? "ok" : "bad"}">${f.ok ? "✓" : "✗"} ${esc(f.text)}</li>`).join("")}</ul>
+          <div class="compare">
+            <div><strong>Customer wanted</strong>${a.expected.map(i => `<div>${esc(i)}</div>`).join("")}</div>
+            <div><strong>Trainee rang</strong>${a.rung.map(i => `<div>${esc(i)}</div>`).join("") || "<div>(nothing)</div>"}</div>
+          </div>
+        </section>
+        <section class="panel">
+          <h2>Replay: every tap, in order</h2>
+          <ul class="timeline">${shown.map(e => {
+            const [cls, text] = describe(e);
+            return `<li><span class="t">${((e.t - t0) / 1000).toFixed(1)}s</span><span class="${cls}">${esc(text)}</span></li>`;
+          }).join("")}</ul>
+        </section>`;
+
+      document.getElementById("back").onclick = () => showTrainee(a.trainee.id);
+      window.scrollTo(0, 0);
+    }
+
+    function exportJSON() {
+      const blob = new Blob([JSON.stringify(Storage.listAttempts(), null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `training-results-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+
+    showOverview();
+  </script>
+</body>
+</html>
