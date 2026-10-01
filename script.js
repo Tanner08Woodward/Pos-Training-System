@@ -6,9 +6,9 @@ let change = 0
 let discountAmount = 0;
 let totalPaid = 0;
 
-// Index of the order line the trainee tapped (highlighted), or null.
-// Like the real register: tap a line, then press Delete Item.
-let selectedLine = null;
+// Order lines the trainee tapped (highlighted), by position in the order.
+// Like the real register: tap one or more lines, then press Delete Item.
+let selectedLines = new Set();
 
 const TAX_RATE = 0.0825;
 
@@ -203,14 +203,14 @@ function updateOrderDisplay() {
   list.innerHTML = "";
 
   // A highlighted line only stays valid while it still exists.
-  if (selectedLine !== null && selectedLine >= currentOrder.length) selectedLine = null;
+  selectedLines.forEach(i => { if (i >= currentOrder.length) selectedLines.delete(i); });
 
   let subtotal = 0;
   currentOrder.forEach((item, index) => {
     const price = prices[item] || 3.0;
     const li = document.createElement("li");
     li.innerText = `${item} - $${price.toFixed(2)}`;
-    if (index === selectedLine) li.classList.add("selected");
+    if (selectedLines.has(index)) li.classList.add("selected");
     li.onclick = () => selectLine(index);
     list.appendChild(li);
     subtotal += price;
@@ -275,33 +275,30 @@ function completeTransaction(trigger = "complete_button") {
   startNewOrder("after_transaction");
 }
 
-function deleteLastItem() {
-  if (currentOrder.length > 0) {
-    track("item_removed", { item: currentOrder[currentOrder.length - 1], line: currentOrder.length, method: "delete_last" });
-  } else {
-    track("delete_on_empty_order", {});
-  }
-  currentOrder.pop();
-  updateOrderDisplay();
-}
-
 // Tap an order line to highlight it; tap it again to un-highlight.
+// Several lines can be highlighted at once.
 function selectLine(index) {
-  selectedLine = (selectedLine === index) ? null : index;
-  track("line_selected", { item: currentOrder[index], line: index + 1, selected: selectedLine !== null });
+  const selected = !selectedLines.has(index);
+  if (selected) selectedLines.add(index); else selectedLines.delete(index);
+  track("line_selected", { item: currentOrder[index], line: index + 1, selected });
   updateOrderDisplay();
 }
 
-// Delete the highlighted line (any line, not just the last one).
+// Delete Item: removes every highlighted line. With nothing highlighted,
+// it removes the last line (same as the real register).
 function deleteSelectedItem() {
-  if (selectedLine === null) {
-    track("delete_without_selection", {});
+  if (currentOrder.length === 0) {
+    track("delete_on_empty_order", {});
     return;
   }
-  const index = selectedLine;
-  track("item_removed", { item: currentOrder[index], line: index + 1, method: "delete_selected" });
-  currentOrder.splice(index, 1);
-  selectedLine = null;
+  let lines = [...selectedLines].sort((a, b) => b - a);   // highest first, so positions don't shift
+  const method = lines.length ? "delete_selected" : "delete_last";
+  if (!lines.length) lines = [currentOrder.length - 1];
+  lines.forEach(index => {
+    track("item_removed", { item: currentOrder[index], line: index + 1, method });
+    currentOrder.splice(index, 1);
+  });
+  selectedLines.clear();
   updateOrderDisplay();
 }
 
