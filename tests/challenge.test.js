@@ -68,3 +68,19 @@ test("challenge without a trainee name goes back to the Training Lab", () => {
   const w = loadRegister("?mode=challenge&scenario=cake-cone");
   assert.strictEqual(w.document.getElementById("ch-modal"), null);
 });
+
+test("a finished challenge is sent to the shared database", async () => {
+  const w = loadRegister("?mode=challenge&scenario=cake-cone", { trainee: TRAINEE });
+  const u = ui(w);
+  u.start();
+  u.tapItem("Small Cone");
+  u.pay();
+  u.pinpad();
+  await wait(700);
+  const call = w.__dbCalls.find(c => c.url.endsWith("/rest/v1/rpc/save_attempt"));
+  assert.ok(call, "save_attempt was called");
+  assert.strictEqual(call.body.p.trainee.name, "Alex B.");
+  assert.strictEqual(call.body.p.mode, "challenge");
+  assert.ok(call.headers.apikey);
+  assert.strictEqual(w.Storage.pendingCount(), 0);
+});

@@ -19,6 +19,12 @@ function loadRegister(query = "", { trainee } = {}) {
   const w = dom.window;
   open.push(w);
   w.alert = () => {};
+  // Fake database: records what the site sends instead of using the internet.
+  w.__dbCalls = [];
+  w.fetch = async (url, opts) => {
+    w.__dbCalls.push({ url, body: JSON.parse(opts.body), headers: opts.headers });
+    return { ok: true, status: 200, text: async () => JSON.stringify("ok") };
+  };
   w.prompt = () => w.__promptAnswer;
   if (trainee) w.localStorage.setItem("ptl.trainee.v1", JSON.stringify(trainee));
   scripts.forEach(src => w.eval(fs.readFileSync(path.join(ROOT, src), "utf8")));

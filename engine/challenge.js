@@ -136,6 +136,7 @@ var Challenge = (() => {
     events.forEach((e, i) => { if (e.type === "challenge_started") startIdx = i; });
     const attempt = {
       id: "a_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6),
+      mode: "challenge",
       trainee: trainee,
       scenarioId: scenario.id,
       scenarioVersion: scenario.version,
