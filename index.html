@@ -19,6 +19,10 @@
     <!-- Modes -->
     <section class="panel">
       <div class="modes">
+        <a class="mode train" href="#lessons">
+          <h3>Training</h3>
+          <p>Step-by-step lessons. Stuck? The right button glows and a tip explains why.</p>
+        </a>
         <a class="mode play" href="register.html?mode=playground">
           <h3>Playground</h3>
           <p>Practice on the register. No score, no pressure. Explore everything.</p>
@@ -27,11 +31,22 @@
           <h3>Challenge</h3>
           <p>A customer gives you an order. Ring it right, take payment, get a score.</p>
         </a>
+        <a class="mode guide" href="guide.html">
+          <h3>Study Guide</h3>
+          <p>Sizes, cones, dipped, deleting, payment, discounts, flavors.</p>
+        </a>
         <a class="mode manager" href="manager.html">
           <h3>Manager</h3>
-          <p>See every trainee's scores, mistakes, and readiness.</p>
+          <p>See every trainee's progress, scores and problem areas.</p>
         </a>
       </div>
+    </section>
+
+    <!-- Lessons -->
+    <section class="panel" id="lessons">
+      <h2>Training lessons</h2>
+      <p class="muted" id="lesson-note"></p>
+      <ul class="challenge-list" id="lesson-list"></ul>
     </section>
 
     <!-- Challenges -->
@@ -46,6 +61,7 @@
   <script src="engine/storage.js"></script>
   <script src="engine/scoring.js"></script>
   <script src="scenarios/handels.js"></script>
+  <script src="lessons/handels.js"></script>
   <script>
     const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -83,9 +99,36 @@
       renderChallenges();
     }
 
-    function renderChallenges() {
+    function renderLessons() {
       const t = Storage.getTrainee();
-      const mine = t ? Storage.listAttempts().filter(a => a.trainee && a.trainee.id === t.id) : [];
+      const mine = t ? Storage.listAttempts().filter(a => a.mode === "lesson" && a.trainee && a.trainee.id === t.id) : [];
+      const done = Lessons.list.filter(l => mine.some(a => a.scenarioId === l.id)).length;
+      document.getElementById("lesson-note").textContent = t
+        ? `${done} of ${Lessons.list.length} done. Start here, then try the Challenges.`
+        : "Enter your name above to start training.";
+      document.getElementById("lesson-list").innerHTML = Lessons.list.map((l, i) => {
+        const tries = mine.filter(a => a.scenarioId === l.id);
+        const best = tries.reduce((b, a) => Math.max(b, a.stars || 0), 0);
+        const badge = tries.length
+          ? `<span class="badge ${best === 3 ? "pass" : ""}">${"★".repeat(best)}${"☆".repeat(3 - best)}</span>`
+          : `<span class="badge">New</span>`;
+        const href = `register.html?mode=lesson&lesson=${encodeURIComponent(l.id)}`;
+        return `
+          <li>
+            <div class="info">
+              <div class="title">${i + 1}. ${esc(l.title)}</div>
+              <div class="meta">${esc(l.summary)}</div>
+            </div>
+            ${t ? badge : ""}
+            ${t ? `<a class="btn small green" href="${href}">${tries.length ? "Again" : "Start"}</a>` : `<button class="btn small" disabled>Start</button>`}
+          </li>`;
+      }).join("");
+    }
+
+    function renderChallenges() {
+      renderLessons();
+      const t = Storage.getTrainee();
+      const mine = t ? Storage.listAttempts().filter(a => a.mode !== "lesson" && a.trainee && a.trainee.id === t.id) : [];
       const list = document.getElementById("challenge-list");
       const passedCount = Scenarios.list.filter(s => mine.some(a => a.scenarioId === s.id && a.passed)).length;
 

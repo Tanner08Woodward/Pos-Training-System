@@ -352,9 +352,15 @@ document.getElementById("pinpad-btn").addEventListener("click", () => {
 
 hideScreens();
 loadCategory("main", false);
-// Lets the training engine read the order without changing it.
+// Let the training engine read the register without changing it.
 function getOrder() {
   return currentOrder.slice();
+}
+function getMenu() {
+  return menuItems;
+}
+function getCategory() {
+  return currentCategory;
 }
 
 // Logout returns to the Training Lab (the hub).

@@ -85,3 +85,58 @@
 }
 .ch-actions .ch-primary { background: green; }
 .ch-link { color: #2852a8; font-weight: bold; }
+
+/* ---------------------------------------------------------------------------
+   Training mode (engine/coach.js)
+   --------------------------------------------------------------------------- */
+#customer-card.coach { border-left-color: #2852a8; background: #eef3ff; }
+#customer-card.coach .cc-head { color: #2852a8; }
+#customer-card.coach p.cc-new { font-size: 1rem; }
+.coach-progress { height: 4px; background: #d5def5; border-radius: 2px; margin: 2px 0 6px; overflow: hidden; }
+.coach-progress span { display: block; height: 100%; background: #2852a8; transition: width 0.3s; }
+.coach-feedback { color: #b3261e !important; font-weight: bold; font-size: 0.85rem; }
+.coach-why { color: #5c4400 !important; background: #fff4c2; border-radius: 4px; padding: 4px 6px; font-size: 0.85rem; }
+.coach-actions { display: flex; gap: 6px; margin-top: 4px; }
+.coach-actions button {
+  padding: 6px 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;
+  background: #2852a8; color: #fff; font-size: 0.85rem;
+}
+.coach-actions button.ghost { background: transparent; color: #2852a8; border: 1px solid #2852a8; }
+
+/* The glowing "tap here" button */
+.coach-glow {
+  position: relative;
+  z-index: 50;
+  outline: 4px solid #ffd54a !important;
+  outline-offset: 2px;
+  animation: coach-pulse 1s ease-in-out infinite;
+}
+#order-list li.coach-glow { outline-offset: 0; }
+@keyframes coach-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 213, 74, 0.95); filter: brightness(1); }
+  50% { box-shadow: 0 0 22px 10px rgba(255, 213, 74, 0.95); filter: brightness(1.25); }
+}
+
+/* Tip bubble next to the glowing button */
+#coach-tip {
+  position: fixed;
+  z-index: 15000;
+  max-width: min(320px, 80vw);
+  background: #1b1b1b;
+  color: #fff;
+  border: 2px solid #ffd54a;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: bold 0.9rem/1.35 Arial, sans-serif;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+#coach-tip[hidden] { display: none; }
+@media (max-height: 500px) {
+  #customer-card.coach p.cc-new { font-size: 0.75rem; }
+  #customer-card .coach-why { display: none; } /* the tip bubble shows it instead */
+  #coach-tip { font-size: 0.75rem; }
+}
+
+.ch-stars { font-size: 2.4rem; color: #f0b400; letter-spacing: 4px; }
+.ch-stars span { color: #ddd; }

@@ -65,7 +65,7 @@ body {
 .btn[disabled] { opacity: 0.4; cursor: not-allowed; }
 
 /* Mode cards */
-.modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
 .mode {
   display: block;
   border-radius: 8px;
@@ -77,6 +77,8 @@ body {
 }
 .mode.play { background: linear-gradient(to bottom, #2e8b57, #1b5e3a); }
 .mode.manager { background: linear-gradient(to bottom, #5d6d7e, #2c3e50); }
+.mode.train { background: linear-gradient(to bottom, #c98a00, #8a5d00); }
+.mode.guide { background: linear-gradient(to bottom, #6a4c93, #43305e); }
 .mode h3 { margin: 0 0 6px; font-size: 1.3rem; }
 .mode p { margin: 0; font-size: 0.95rem; opacity: 0.9; }
 
