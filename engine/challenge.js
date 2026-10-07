@@ -64,6 +64,28 @@ var Challenge = (() => {
     if (finished || stepIndex >= lastStep()) return;
     stepIndex += 1;
     say(scenario.steps[stepIndex].say, { step: stepIndex + 1 });
+    interrupt(scenario.steps[stepIndex].say, "The customer changes their order");
+  }
+
+  // Big speech bubble in the middle of the screen, so a change of mind or
+  // how they're paying can't be missed (like hearing it at the counter).
+  // The timer keeps running; tap anywhere on it to keep going.
+  function interrupt(text, heading) {
+    closeInterrupt();
+    const wrap = document.createElement("div");
+    wrap.id = "ch-interrupt";
+    wrap.innerHTML = `
+      <div class="ci-bubble" role="alert">
+        <div class="ci-head">🗣 ${esc(heading)}</div>
+        <div class="ci-text">“${esc(text)}”</div>
+        <button class="ci-ok">Got it</button>
+      </div>`;
+    wrap.onclick = closeInterrupt;
+    document.body.appendChild(wrap);
+  }
+  function closeInterrupt() {
+    const el = $("ch-interrupt");
+    if (el) el.remove();
   }
 
   function scheduleAdvance() {
@@ -84,6 +106,7 @@ var Challenge = (() => {
       } else if (!paySaid) {
         paySaid = true;
         say(scenario.pay.say, { step: "pay" });
+        interrupt(scenario.pay.say, "The customer pays");
       }
       return;
     }
@@ -124,6 +147,7 @@ var Challenge = (() => {
 
   function finish() {
     finished = true;
+    closeInterrupt();
     clearTimeout(advanceTimer);
     clearInterval(clockTimer);
     renderCard();
@@ -172,9 +196,13 @@ var Challenge = (() => {
       </ul>
       ${r.orderCorrect ? "" : `
         <div class="ch-compare">
-          <div><strong>Customer wanted</strong>${r.expected.map(i => `<div>${esc(i)}</div>`).join("")}</div>
+          <div><strong>${scenario.steps.length > 1 ? "Final order (after changes)" : "Customer wanted"}</strong>${r.expected.map(i => `<div>${esc(i)}</div>`).join("")}</div>
           <div><strong>You rang</strong>${r.rung.map(i => `<div>${esc(i)}</div>`).join("") || "<div>(nothing)</div>"}</div>
         </div>`}
+      <details class="ch-convo" ${r.orderCorrect ? "" : "open"}>
+        <summary>What the customer said</summary>
+        ${lines.map(l => `<p>“${esc(l)}”</p>`).join("")}
+      </details>
       ${!r.passed && scenario.tip ? `<p class="ch-tip"><strong>Tip:</strong> ${esc(scenario.tip)}</p>` : ""}
       ${saved ? "" : `<p class="ch-muted">This result could not be saved on this device.</p>`}
       <div class="ch-actions">

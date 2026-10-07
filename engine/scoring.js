@@ -132,6 +132,18 @@ var Scoring = (() => {
     const extra = subtract(rung, expected);
     const orderErrors = classifyOrderErrors(missing, extra, itemInfo);
 
+    // Did they ring an EARLIER version of the order (missed a change of mind)?
+    let missedChange = null;
+    if (orderErrors.length) {
+      for (let i = scenario.steps.length - 2; i >= 0; i--) {
+        const old = scenario.steps[i].order;
+        if (!subtract(old, rung).length && !subtract(rung, old).length) {
+          missedChange = scenario.steps[i + 1].say;
+          break;
+        }
+      }
+    }
+
     const tenders = during.filter(e => e.type === "tender_applied");
     const payment = checkPayment(scenario.pay, tenders, done);
 
@@ -169,6 +181,9 @@ var Scoring = (() => {
 
     // Mistakes (for analytics) and feedback (for the trainee), same facts.
     const mistakes = orderErrors.map(e => ({ code: e.code, text: e.text }));
+    if (missedChange) {
+      mistakes.unshift({ code: "missed_change", text: `Rang the customer's first order, but they changed it: “${missedChange}”` });
+    }
     if (!payment.ok) mistakes.push({ code: payment.code, text: payment.text });
     if (extraDeletes > 0) {
       mistakes.push({
@@ -184,10 +199,11 @@ var Scoring = (() => {
 
     const feedback = [];
     if (orderCorrect) feedback.push({ ok: true, text: "Order rung correctly." });
+    if (missedChange) feedback.push({ ok: false, text: mistakes[0].text });
     orderErrors.forEach(e => feedback.push({ ok: false, text: e.text }));
     feedback.push({ ok: payment.ok, text: payment.text });
     if (extraDeletes === 0) {
-      feedback.push({ ok: true, text: needed ? "Fixed the customer's change cleanly." : "No unnecessary deletes." });
+      feedback.push({ ok: true, text: needed && orderCorrect ? "Fixed the customer's change cleanly." : "No unnecessary deletes." });
     } else {
       feedback.push({ ok: false, text: mistakes.find(m => m.code === "extra_deletes").text });
     }

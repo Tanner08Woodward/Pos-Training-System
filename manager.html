@@ -156,6 +156,7 @@
       wrong_tender_amount: "Enters the wrong cash amount",
       extra_deletes: "Deletes more than needed",
       slow: "Slower than the goal time",
+      missed_change: "Misses when the customer changes their mind",
     };
     const problem = code => PROBLEMS[code] || code;
 
@@ -163,7 +164,7 @@
     const PRACTICE = {
       wrong_size: "sizes", wrong_type: "sizes", missed_addon: "dipped", missing_item: "register-tour",
       extra_item: "fixing-mistakes", extra_deletes: "fixing-mistakes", no_payment: "payment",
-      wrong_payment_method: "payment", wrong_tender_amount: "payment",
+      wrong_payment_method: "payment", wrong_tender_amount: "payment", missed_change: "fixing-mistakes",
     };
 
     let ALL = [];          // every attempt (challenges + lessons)
@@ -203,7 +204,10 @@
         }
         ALL = Storage.listAttempts();
         SOURCE = "device";
-        showOverview(`Couldn't reach the shared database (${esc(err.message)}). Showing results saved on this device only.`);
+        const why = err.status === 404
+          ? "The shared database isn't set up yet: run supabase/schema.sql in the Supabase SQL Editor."
+          : `Couldn't reach the shared database (${esc(err.message)}).`;
+        showOverview(`${why} Showing results saved on this device only.`);
       }
     }
 

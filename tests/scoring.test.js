@@ -120,3 +120,16 @@ test("every scenario's cash is enough to pay its total", () => {
     assert.ok(s.pay.tendered >= total, `${s.id}: $${s.pay.tendered} covers $${total.toFixed(2)}`);
   });
 });
+
+test("ringing the ORIGINAL order after a change of mind is called out clearly", () => {
+  const r = score("dipped-size-change", [
+    ["challenge_started", {}, 0],
+    ["tender_applied", { method: "pinpad", amount: 9.96 }, 10],
+    [...done(["Large Waffle Cone", "Dipped Waffle Cone With Sprinkles"], 9.96, 0, "auto_after_pinpad"), 11],
+  ]);
+  assert.strictEqual(r.passed, false);
+  assert.strictEqual(r.mistakes[0].code, "missed_change");
+  assert.match(r.mistakes[0].text, /make it a medium/);
+  assert.match(r.feedback.map(f => f.text).join(" "), /changed it/);
+  assert.doesNotMatch(r.feedback.map(f => f.text).join(" "), /Fixed the customer's change/);
+});

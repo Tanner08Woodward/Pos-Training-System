@@ -84,3 +84,19 @@ test("a finished challenge is sent to the shared database", async () => {
   assert.ok(call.headers.apikey);
   assert.strictEqual(w.Storage.pendingCount(), 0);
 });
+
+test("a change of mind pops up in the middle of the screen", async () => {
+  const w = loadRegister("?mode=challenge&scenario=dipped-size-change", { trainee: TRAINEE });
+  const u = ui(w);
+  u.start();
+  u.tapItem("Large Waffle Cone");
+  u.tapItem("Dipped Waffle Cone With Sprinkles");
+  await wait(1000);
+  const pop = w.document.getElementById("ch-interrupt");
+  assert.ok(pop, "popup shown");
+  assert.match(pop.textContent, /make it a medium/);
+  pop.querySelector(".ci-ok").click();
+  assert.strictEqual(w.document.getElementById("ch-interrupt"), null, "Got it closes it");
+  u.pay();
+  assert.match(w.document.getElementById("ch-interrupt").textContent, /tap my card/);
+});
