@@ -55,8 +55,8 @@ test("an old pass does not count when the latest try of that challenge failed", 
 test("repeated recent failures show Needs help even after passing everything once", () => {
   const w = loadManager([...LESSONS.map(l => lesson(l, 3)), ...SCENARIOS.map(s => challenge(s, true)),
     ...[0, 1, 2, 3, 4].map(i => challenge(SCENARIOS[i % SCENARIOS.length], false, ["wrong_size"]))]);
-  assert.match(status(w), /Needs help/);
-  assert.ok(w.document.querySelector(".attention"), "listed under Needs your attention");
+  assert.match(status(w), /Needs coaching/);
+  assert.equal(w.document.querySelector(".kpi.k-help .v").textContent, "1", "counted under Need coaching");
 });
 
 test("1-star lessons (heavy coaching) don't complete practice", () => {
