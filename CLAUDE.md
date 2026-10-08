@@ -32,7 +32,7 @@ Keep two ideas separate (without over-engineering):
 Files:
 - `index.html`: **Training Lab** (hub). Trainee enters first name + last initial; links to Training lessons, Playground, Challenges, Study Guide, Manager.
 - `guide.html`: register Study Guide (from the Handel's study guide + onboarding packet), each section links to its lesson.
-- `config.js`: public Supabase URL + publishable key (sent in the `apikey` header). `supabase/schema.sql`: one-time database setup (run in Supabase SQL Editor; RLS on, website can only call save_attempt / manager_attempts / manager_clear).
+- `config.js`: public Supabase URL + publishable key (sent in the `apikey` header). `supabase/schema.sql`: one-time database setup (run in Supabase SQL Editor; RLS on, website can only call save_attempt / manager_attempts / manager_clear). `save_attempt` rejects malformed results via `attempt_problem()` (shape, ranges, pass needs 80+); it can't yet prove a pass is real (server re-scoring is a later step). Databases set up before Oct 9, 2026 also need `supabase/002_validate_attempts.sql` run once.
 - `engine/coach.js` + `lessons/handels.js`: Training mode (`?mode=lesson&lesson=<id>`). Steps with targets; the next button glows after 5s idle or a wrong tap, tip bubble after 10s / 2 wrong / "Show me". Wrong item → inserted "fix it" steps; order knocked off track → restart at checkpoint.
 - `register.html`: the Handel's register (moved from the old `index.html`; layout unchanged). `?mode=playground` or `?mode=challenge&scenario=<id>`. Logout returns to the hub.
 - `style.css`: register look. Always 6 columns; row height scales with screen height so iPhone/iPad/computer match the real layout.
@@ -43,7 +43,7 @@ Files:
 - `engine/scoring.js`: deterministic scoring from the action log (order 50, payment 20, corrections 15, speed 15; pass = right order + right payment + 80+).
 - `engine/storage.js`: saves trainee + attempts on the device AND sends them to Supabase (retries unsent ones on next page load). Manager reads all devices with the manager code.
 - `scenarios/handels.js`: Challenge orders as data + `itemInfo` (size / product / add-on) for Handel's.
-- `manager.html` + `hub.css`: manager dashboard (code sign-in): KPIs, needs-attention list with suggested lesson, trainee progress (lessons + challenges), team problem areas, per-trainee score trend, step-by-step replay. Ready = all lessons done + all challenges passed.
+- `manager.html` + `hub.css`: manager dashboard (code sign-in): KPIs, needs-attention list with suggested lesson, trainee progress (lessons + challenges), team problem areas, per-trainee score trend, step-by-step replay. "Practice complete" = every lesson at 2+ stars and the latest try of every challenge passed (current versions only); "Needs help" takes priority. It is not a readiness prediction; a trainer signs off on the live register.
 - `tests/`: automated tests (`cd tests && npm install && npm test`). Not part of the site.
 
 ## Milestones
