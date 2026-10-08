@@ -4,6 +4,11 @@ let currentOrder = [];
 let currentTotal = 0;
 let change = 0 
 let discountAmount = 0;
+// The discount as entered ({ kind: "percent" | "flat", value }). The dollar
+// amount (discountAmount) is worked out from the current order every time the
+// order changes, so a % discount follows added items and a flat discount can
+// never be more than the order.
+let discount = null;
 let totalPaid = 0;
 
 // Order lines the trainee tapped (highlighted), by position in the order.
@@ -123,8 +128,18 @@ const prices = {
   "5 Pack Cones": 2.25,
   "Flavor Box - Top 4": 18.75,
   "Flavor Box - Custom": 21,
-  "Dipped Kids Cone": 4.75
+  "Dipped Kids Cone": 4.75,
+  // Same items under the exact button spelling, so they ring their real price
+  // instead of the $3.00 default.
+  "Dipped Kid's Cone": 4.75,
+  "Check Gift Card Ballence": 0,
 };
+
+// Price for a button. Items priced $0 (gift cards, catering...) ring $0.00.
+// Items with no price yet still ring the old $3.00 default (see CLAUDE.md).
+function priceOf(item) {
+  return typeof prices[item] === "number" ? prices[item] : 3.0;
+}
 
 // True while a paid sale is about to finish, so rapid taps on cash buttons
 // or the pinpad can't complete the same sale twice.
@@ -135,6 +150,7 @@ function startNewOrder(reason = "new_order_button") {
   completionPending = false;
   currentOrder = [];
   totalPaid = 0;
+  discount = null;
   discountAmount = 0;
   updateOrderDisplay();
   hideScreens();
@@ -192,15 +208,24 @@ function addItem(item) {
     track("empty_slot_tapped", {});
     return;
   }
-  const hasRealPrice = typeof prices[item] === "number" && prices[item] > 0;
   track("item_added", {
     item,
-    price: prices[item] || 3.0,        // the price actually charged today
-    priceFallback: !hasRealPrice,      // true = the $3.00 default was used
+    price: priceOf(item),              // the price actually charged
+    priceFallback: typeof prices[item] !== "number", // true = the $3.00 default was used
     line: currentOrder.length + 1,
   });
   currentOrder.push(item);
   updateOrderDisplay();
+}
+
+function orderSubtotal() {
+  return currentOrder.reduce((sum, item) => sum + priceOf(item), 0);
+}
+
+// Dollar amount of the current discount for a given subtotal.
+function discountFor(subtotal) {
+  if (!discount) return 0;
+  return discount.kind === "percent" ? subtotal * (discount.value / 100) : Math.min(discount.value, subtotal);
 }
 
 function updateOrderDisplay() {
@@ -212,7 +237,7 @@ function updateOrderDisplay() {
 
   let subtotal = 0;
   currentOrder.forEach((item, index) => {
-    const price = prices[item] || 3.0;
+    const price = priceOf(item);
     const li = document.createElement("li");
     li.innerText = `${item} - $${price.toFixed(2)}`;
     if (selectedLines.has(index)) li.classList.add("selected");
@@ -221,6 +246,9 @@ function updateOrderDisplay() {
     subtotal += price;
   });
 
+  // An empty order can't keep a discount.
+  if (!currentOrder.length) discount = null;
+  discountAmount = discountFor(subtotal);
   subtotal -= discountAmount;
   const tax = subtotal * TAX_RATE;
   currentTotal = Math.max(0, subtotal + tax);
@@ -313,15 +341,15 @@ function deleteSelectedItem() {
 function clearOrder() {
   track("order_cleared", { itemsRemoved: currentOrder.slice() });
   currentOrder = [];
+  discount = null;
   updateOrderDisplay();
 }
 
 function applyPercentDiscount() {
   const percent = parseFloat(prompt("Enter discount percent (e.g., 10 for 10%)"));
   if (!isNaN(percent) && percent >= 0 && percent <= 100) {
-    const rawSubtotal = currentOrder.reduce((sum, item) => sum + (prices[item] || 3.0), 0);
-    discountAmount = rawSubtotal * (percent / 100);
-    track("discount_applied", { kind: "percent", percent, amount: Math.round(discountAmount * 100) / 100 });
+    discount = { kind: "percent", value: percent };
+    track("discount_applied", { kind: "percent", percent, amount: Math.round(discountFor(orderSubtotal()) * 100) / 100 });
     updateOrderDisplay();
   } else {
     track("discount_cancelled", { kind: "percent" });
@@ -331,8 +359,8 @@ function applyPercentDiscount() {
 function applyFlatDiscount() {
   const amount = parseFloat(prompt("Enter flat dollar discount:"));
   if (!isNaN(amount) && amount > 0) {
-    discountAmount = amount;
-    track("discount_applied", { kind: "flat", amount: Math.round(amount * 100) / 100 });
+    discount = { kind: "flat", value: amount };
+    track("discount_applied", { kind: "flat", amount: Math.round(discountFor(orderSubtotal()) * 100) / 100, entered: Math.round(amount * 100) / 100 });
     updateOrderDisplay();
   } else {
     track("discount_cancelled", { kind: "flat" });
