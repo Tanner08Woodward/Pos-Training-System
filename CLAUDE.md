@@ -30,9 +30,9 @@ Keep two ideas separate (without over-engineering):
 - **Business configuration** (Handel's-specific): register layout (`menuItems`), `prices`, and register rules. It currently lives in `script.js` and may move to its own data file later.
 
 Files:
-- `index.html`: **Training Lab** (hub). Trainee enters first name + last initial; links to Training lessons, Playground, Challenges, Study Guide, Manager.
+- `index.html`: **Training Lab** (hub). Trainee signs in with a 4-digit **trainee code** from their manager (falls back to typing first name + last initial if the database has no codes yet, or with no database); links to Training lessons, Playground, Challenges, Study Guide, Manager.
 - `guide.html`: register Study Guide (from the Handel's study guide + onboarding packet), each section links to its lesson.
-- `config.js`: public Supabase URL + publishable key (sent in the `apikey` header). `supabase/schema.sql`: one-time database setup (run in Supabase SQL Editor; RLS on, website can only call save_attempt / manager_attempts / manager_clear).
+- `config.js`: public Supabase URL + publishable key (sent in the `apikey` header). `supabase/schema.sql`: one-time database setup (run in Supabase SQL Editor; RLS on, website can only call save_attempt / manager_attempts / manager_clear). `save_attempt` rejects malformed results via `attempt_problem()` (shape, ranges, pass needs 80+); it can't yet prove a pass is real (server re-scoring is a later step). Database setup = `schema.sql`, then the numbered files in order (`002_validate_attempts.sql`, `003_trainee_codes.sql`); each is safe to re-run. 003 adds `trainees` (name, store, unique 4-digit code, active), sign-in throttling (100 wrong codes / 10 min pauses sign-in), manager functions to add/turn off trainees and rename stores, ties each new result to the trainee's store, and scopes manager reads/deletes to the manager's organization. `tests/sql/` has a local check script.
 - `engine/coach.js` + `lessons/handels.js`: Training mode (`?mode=lesson&lesson=<id>`). Steps with targets; the next button glows after 5s idle or a wrong tap, tip bubble after 10s / 2 wrong / "Show me". Wrong item → inserted "fix it" steps; order knocked off track → restart at checkpoint.
 - `register.html`: the Handel's register (moved from the old `index.html`; layout unchanged). `?mode=playground` or `?mode=challenge&scenario=<id>`. Logout returns to the hub.
 - `style.css`: register look. Always 6 columns; row height scales with screen height so iPhone/iPad/computer match the real layout.
@@ -43,7 +43,7 @@ Files:
 - `engine/scoring.js`: deterministic scoring from the action log (order 50, payment 20, corrections 15, speed 15; pass = right order + right payment + 80+).
 - `engine/storage.js`: saves trainee + attempts on the device AND sends them to Supabase (retries unsent ones on next page load). Manager reads all devices with the manager code.
 - `scenarios/handels.js`: Challenge orders as data + `itemInfo` (size / product / add-on) for Handel's.
-- `manager.html` + `hub.css`: manager dashboard (code sign-in): KPIs, needs-attention list with suggested lesson, trainee progress (lessons + challenges), team problem areas, per-trainee score trend, step-by-step replay. Ready = all lessons done + all challenges passed.
+- `manager.html` + `hub.css`: manager dashboard (code sign-in): KPIs, needs-attention list with suggested lesson, trainee progress (lessons + challenges), team problem areas, per-trainee score trend, step-by-step replay, store filter, and **Trainee codes** (add trainees per store, see/turn off codes, rename stores). "Practice complete" = every lesson at 2+ stars and the latest try of every challenge passed (current versions only); "Needs help" takes priority. It is not a readiness prediction; a trainer signs off on the live register.
 - `tests/`: automated tests (`cd tests && npm install && npm test`). Not part of the site.
 
 ## Milestones
@@ -52,7 +52,8 @@ Files:
 - **M2 (done):** Delete Item (tap to highlight one or more lines; with none highlighted it deletes the last line; Delete Last Item removed). Same 6-column layout on all devices. Training Lab hub, Playground, Challenge Mode with 6 Handel's scenarios (incl. change-of-mind), scoring, trainee name, saved results, manager page with replay.
 - **M3 (done):** Supabase shared database (tested against local PostgreSQL), Training mode with glowing hints (7 lessons), Study Guide, redesigned manager dashboard.
 - **M4 (implementation, pending preview review):** publishable-key connection, quota-safe delivery storage and migration, visible save status, rejected-record isolation and manual resend, and safe manager result rendering. Older tabs are merged by attempt ID. Clearing results preserves this device's unsent attempts. Database schema unchanged.
-- **Next:** stable trainee identity and store attribution, manager accounts, hub design previews, then readiness wording and calibrated baseline times. Voice remains deferred until the core training loop is dependable.
+- **M5 (implementation, pending review):** trainee codes + store attribution (owner chose codes over typed names or a public name list).
+- **Next:** manager accounts per store, hub design previews, then readiness wording and calibrated baseline times. Voice remains deferred until the core training loop is dependable.
 
 ## Known bugs (verified, not yet fixed; behavior matters more than prices right now)
 - About 19 buttons have no price yet and still ring the $3.00 default (`priceOf()` in `script.js`): Kid's Cone, Kid's Dipped Cone, Turtle Sundae, Boston Cooler, Freeze, Bottle Water, Soft Drink, Extra Waffle Cone/Bowl, Mixed Nuts, Pecans, Apple Dumpling w/o IC, Handel's Coin Sold, Pint Card Sold, Gift Certificate Sold, Hat, T Shirt. Need real prices from the owner. Items priced $0 (gift cards, catering, DoorDash, Misc., Dipped Waffle Bowl) ring $0.00; the real register asks for an amount on some of these.
