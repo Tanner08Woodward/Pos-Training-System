@@ -56,7 +56,7 @@ test("repeated recent failures show Needs help even after passing everything onc
   const w = loadManager([...LESSONS.map(l => lesson(l, 3)), ...SCENARIOS.map(s => challenge(s, true)),
     ...[0, 1, 2, 3, 4].map(i => challenge(SCENARIOS[i % SCENARIOS.length], false, ["wrong_size"]))]);
   assert.match(status(w), /Needs coaching/);
-  assert.ok(w.document.querySelector(".attention"), "listed under Needs your attention");
+  assert.equal(w.document.querySelector(".kpi.k-help .v").textContent, "1", "counted under Need coaching");
 });
 
 test("1-star lessons (heavy coaching) don't complete practice", () => {
