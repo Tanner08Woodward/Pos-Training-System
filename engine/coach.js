@@ -351,11 +351,13 @@ var Coach = (() => {
         <li class="ok">Time: ${seconds.toFixed(0)}s</li>
       </ul>
       <p class="ch-muted">${stars < 3 ? "Run it again until you get 3 stars, then try the Challenges." : "Nice. You're ready for the Challenges on this skill."}</p>
+      <p class="save-status" id="coach-save-status" role="status" aria-live="polite"></p>
       <div class="ch-actions">
         ${next ? `<button class="ch-primary" id="coach-nextlesson">Next lesson</button>` : `<button class="ch-primary" id="coach-challenges">Try a Challenge</button>`}
         <button id="coach-again">Do it again</button>
         <a class="ch-link" href="index.html">Training Lab</a>
       </div>`);
+    Storage.showSaveStatus(box.querySelector("#coach-save-status"), result.id);
     box.querySelector("#coach-again").onclick = () => window.location.reload();
     const toChallenges = box.querySelector("#coach-challenges");
     if (toChallenges) toChallenges.onclick = () => { window.location.href = "index.html#challenges"; };

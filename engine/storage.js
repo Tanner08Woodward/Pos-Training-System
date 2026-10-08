@@ -9,13 +9,15 @@
 //    can show "your progress" instantly.
 // 2. The shared database (Supabase, see config.js + supabase/schema.sql), so
 //    a manager on any device sees every trainee. If the internet drops, the
-//    attempt waits in a "to send" list and is sent next time a page opens.
+//    attempt and its pending/sent/rejected state stay together. Pending
+//    results retry on page load and when the browser comes back online.
 
 var Storage = (() => {
   const KEYS = {
     trainee: "ptl.trainee.v1",
-    attempts: "ptl.attempts.v1",
-    pending: "ptl.pending.v1",   // attempt ids not yet sent to the database
+    attempts: "ptl.attempts.v1", // legacy data, retained as a migration backup
+    pending: "ptl.pending.v1",
+    records: "ptl.records.v2",  // attempt + delivery state, saved together
   };
 
   // Browsers can block storage (private mode, settings). The register and
@@ -42,26 +44,73 @@ var Storage = (() => {
 
   // ---- Shared database (Supabase) ------------------------------------------
   const cfg = typeof AppConfig !== "undefined" ? AppConfig : null;
-  const remoteEnabled = !!(cfg && cfg.supabaseUrl && cfg.supabaseAnonKey);
+  const apiKey = cfg && (cfg.supabasePublishableKey || cfg.supabaseAnonKey);
+  const remoteEnabled = !!(cfg && cfg.supabaseUrl && apiKey);
 
   async function rpc(name, body) {
-    const res = await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/${name}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: cfg.supabaseAnonKey,
-        Authorization: `Bearer ${cfg.supabaseAnonKey}`,
-      },
-      body: JSON.stringify(body),
-    });
-    const text = await res.text();
-    const data = text ? JSON.parse(text) : null;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    let res, text;
+    try {
+      res = await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/${name}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: apiKey,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      text = await res.text();
+    } finally {
+      clearTimeout(timeout);
+    }
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (err) { /* proxy errors may be HTML */ }
     if (!res.ok) {
       const err = new Error((data && data.message) || `Database error ${res.status}`);
       err.status = res.status;
       throw err;
     }
+    if (text && data === null) throw new Error("Invalid database response");
     return data;
+  }
+
+  // Older versions wrote attempts and their queue separately. Keep the old
+  // keys as a backup, but use only this single record list after migration.
+  // Re-send old attempts: save_attempt is idempotent by attempt id, and a
+  // missing old queue entry is not proof an attempt reached the database.
+  function records() {
+    const current = read(KEYS.records, null);
+    if (Array.isArray(current)) return current;
+    const old = read(KEYS.attempts, []);
+    const migrated = (Array.isArray(old) ? old : []).map(attempt => ({
+      attempt, status: "pending", error: null,
+    }));
+    write(KEYS.records, migrated);
+    return migrated;
+  }
+
+  const notices = new Set();
+  const unsaved = new Set();
+  function refreshNotices() {
+    notices.forEach(notice => {
+      if (!notice.element.isConnected) { notices.delete(notice); return; }
+      const status = getSaveStatus(notice.id);
+      notice.element.textContent = status.text;
+      notice.element.dataset.state = status.state;
+    });
+  }
+
+  function setDelivery(id, status, error = null) {
+    const all = records();
+    const record = all.find(r => r.attempt.id === id);
+    if (!record) return false;
+    record.status = status;
+    record.error = error;
+    const ok = write(KEYS.records, all);
+    refreshNotices();
+    return ok;
   }
 
   let syncing = null;
@@ -71,16 +120,24 @@ var Storage = (() => {
     if (syncing) return syncing;
     syncing = (async () => {
       let sent = 0;
-      const all = listAttempts();
-      for (const id of read(KEYS.pending, [])) {
-        const attempt = all.find(a => a.id === id);
+      const visited = new Set();
+      while (true) {
+        const next = records().find(r => r.status === "pending" && !visited.has(r.attempt.id));
+        if (!next) break;
+        const { attempt } = next;
+        visited.add(attempt.id);
         try {
-          if (attempt) await rpc("save_attempt", { p: attempt });
-          write(KEYS.pending, read(KEYS.pending, []).filter(x => x !== id));
+          await rpc("save_attempt", { p: attempt });
+          // If this write fails, keep it pending: retrying the same id is safe.
+          setDelivery(attempt.id, "sent");
           sent += 1;
         } catch (err) {
-          console.warn("Not sent yet (will retry):", id, err.message);
-          break; // probably offline; try again next time
+          const rejected = [400, 413, 422].includes(err.status);
+          setDelivery(attempt.id, rejected ? "rejected" : "pending", { status: err.status || 0 });
+          console.warn("Result not sent:", attempt.id, err.message);
+          // Invalid attempts must not block the next one. Authentication,
+          // rate limits, server failures and offline errors should retry later.
+          if (!rejected) break;
         }
       }
       return sent;
@@ -89,7 +146,32 @@ var Storage = (() => {
   }
 
   function pendingCount() {
-    return read(KEYS.pending, []).length;
+    return records().filter(r => r.status === "pending").length;
+  }
+
+  function getSaveStatus(id) {
+    const record = records().find(r => r.attempt.id === id);
+    if (unsaved.has(id) || !record) return {
+      state: "unsaved", text: "Couldn't save this result on this device. Tell your manager before leaving this page.",
+    };
+    if (record.status === "sent") return { state: "sent", text: "Sent to your manager." };
+    if (record.status === "rejected" || (record.error && [401, 403, 404].includes(record.error.status))) return {
+      state: record.status, text: "Saved on this device, but couldn't send. Tell your manager.",
+    };
+    return {
+      state: "pending", text: remoteEnabled
+        ? "Saved on this device. Will send when the connection is available."
+        : "Saved on this device only. Shared saving isn't connected; tell your manager.",
+    };
+  }
+
+  function showSaveStatus(element, id) {
+    notices.add({ element, id });
+    refreshNotices();
+  }
+
+  function rejectedCount() {
+    return records().filter(r => r.status === "rejected").length;
   }
 
   // Manager: all attempts from every device (needs the manager code).
@@ -116,31 +198,38 @@ var Storage = (() => {
 
   // ---- Attempts on this device ---------------------------------------------
   function listAttempts() {
-    return read(KEYS.attempts, []);
+    return records().map(r => r.attempt);
   }
 
   function saveAttempt(attempt) {
-    const all = listAttempts();
-    all.push(attempt);
-    const ok = write(KEYS.attempts, all);
-    if (ok && remoteEnabled) {
-      write(KEYS.pending, read(KEYS.pending, []).concat(attempt.id));
-      syncPending();
-    }
+    const all = records();
+    if (!all.some(r => r.attempt.id === attempt.id)) all.push({ attempt, status: "pending", error: null });
+    const ok = write(KEYS.records, all);
+    if (ok) unsaved.delete(attempt.id); else unsaved.add(attempt.id);
+    refreshNotices();
+    if (ok && remoteEnabled) syncPending();
     return ok;
   }
 
   function clearAttempts() {
-    write(KEYS.pending, []);
-    return write(KEYS.attempts, []);
+    const ok = write(KEYS.records, []);
+    if (ok) {
+      write(KEYS.pending, []);
+      write(KEYS.attempts, []);
+      unsaved.clear();
+      refreshNotices();
+    }
+    return ok;
   }
 
   // Try to send anything left over from last time (e.g. offline).
   if (remoteEnabled) setTimeout(syncPending, 0);
+  window.addEventListener("online", syncPending);
 
   return {
     getTrainee, setTrainee,
     listAttempts, saveAttempt, clearAttempts,
-    remoteEnabled, syncPending, pendingCount, fetchAllAttempts, clearAllAttempts,
+    remoteEnabled, syncPending, pendingCount, rejectedCount, getSaveStatus, showSaveStatus,
+    fetchAllAttempts, clearAllAttempts,
   };
 })();
