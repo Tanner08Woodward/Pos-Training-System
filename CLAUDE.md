@@ -55,12 +55,11 @@ Files:
 - **Next:** stable trainee identity and store attribution, manager accounts, hub design previews, then readiness wording and calibrated baseline times. Voice remains deferred until the core training loop is dependable.
 
 ## Known bugs (verified, not yet fixed; behavior matters more than prices right now)
-- `prices[item] || 3.0` charges $3.00 for any item priced 0 (Gift Card Sold, Gift Card Reload, Holiday Card Sold, Catering, DoorDash, Misc. Item, Dipped Waffle Bowl) and for ~19 unpriced items (Kid's Cone, Dipped Kid's Cone, Kid's Dipped Cone, Turtle Sundae, Boston Cooler, Freeze, Bottle Water, Soft Drink, Extra Waffle Cone/Bowl, Mixed Nuts, Pecans, Apple Dumpling w/o IC, Check Gift Card Ballence, Handel's Coin Sold, Pint Card Sold, Gift Certificate Sold, Hat, T Shirt).
-- Name mismatches: price key "Check Gift Card Balance" vs button "Ballence"; key "Dipped Kids Cone" vs button "Dipped Kid's Cone".
-- Complete Transaction and Pay with Pinpad finish the sale with no payment, even on an empty order (Challenge scoring catches it as a payment mistake).
-- Flat discount larger than the order makes subtotal/tax negative. Percent discount doesn't update when items are added later. Delete Item/Delete All don't clear the discount.
+- About 19 buttons have no price yet and still ring the $3.00 default (`priceOf()` in `script.js`): Kid's Cone, Kid's Dipped Cone, Turtle Sundae, Boston Cooler, Freeze, Bottle Water, Soft Drink, Extra Waffle Cone/Bowl, Mixed Nuts, Pecans, Apple Dumpling w/o IC, Handel's Coin Sold, Pint Card Sold, Gift Certificate Sold, Hat, T Shirt. Need real prices from the owner. Items priced $0 (gift cards, catering, DoorDash, Misc., Dipped Waffle Bowl) ring $0.00; the real register asks for an amount on some of these.
+- Complete Transaction and Pay with Pinpad finish the sale with no payment, even on an empty order (Challenge scoring catches it as a payment mistake). Not fixed: needs the owner to confirm what the real register does.
 - No employee login for voids/discounts.
 - `alert()`/`prompt()` popups instead of on-screen register dialogs. Money stored as floats (should be integer cents).
+- Fixed Oct 2026: $0 items charged $3.00; two price-name mismatches ("Ballence", "Dipped Kid's Cone"); flat discount bigger than the order went negative; % discount didn't follow later items; Delete All kept the discount.
 
 ## Handel's register knowledge
 - Flavors are NOT rung on the register; only size and vessel are. Flavor is called out to the scoopers.
