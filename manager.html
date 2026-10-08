@@ -3,129 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Manager Dashboard</title>
-  <link rel="stylesheet" href="hub.css" />
-  <style>
-    /* Dashboard look. One blue for amounts; status colors always come
-       with an icon + word so color is never the only signal. */
-    .dash {
-      --ink: #1f1f1f;
-      --ink-2: #52514e;
-      --ink-3: #8a8985;
-      --bar: #2a78d6;
-      --track: #e6eefb;
-      --good: #0ca30c;
-      --warn-bg: #fff4d6;
-      --bad: #d03b3b;
-      --good-bg: #e3f6e3;
-      --bad-bg: #fbe5e5;
-      color: var(--ink);
-    }
-    .dash h2 { font-size: 1.1rem; margin: 0 0 4px; }
-    .dash .sub { color: var(--ink-2); margin: 0 0 14px; font-size: 0.92rem; }
-
-    /* KPI tiles */
-    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
-    .kpi { background: #fff; border-radius: 10px; padding: 14px 16px; }
-    .kpi .v { font-size: 2.2rem; font-weight: bold; line-height: 1.1; }
-    .kpi .v small { font-size: 1rem; color: var(--ink-3); font-weight: normal; }
-    .kpi .l { color: var(--ink-2); font-size: 0.88rem; margin-top: 2px; }
-
-    /* Status pill: icon + word */
-    .status { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 12px; font-weight: bold; font-size: 0.82rem; white-space: nowrap; }
-    .status.ready { background: var(--good-bg); color: #0a7a0a; }
-    .status.training { background: #eef2fb; color: #2852a8; }
-    .status.help { background: var(--bad-bg); color: #a32727; }
-    .status.new { background: #eee; color: var(--ink-2); }
-
-    /* Trainee rows */
-    .people { list-style: none; margin: 0; padding: 0; }
-    .person {
-      display: grid;
-      grid-template-columns: minmax(130px, 1.2fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(140px, 1.4fr) 16px;
-      gap: 14px; align-items: center;
-      padding: 12px 8px; border-bottom: 1px solid #eee; cursor: pointer; border-radius: 6px;
-    }
-    .person:hover { background: #f5f8fe; }
-    .person .name { font-weight: bold; font-size: 1.05rem; margin-bottom: 3px; }
-    .person .when { color: var(--ink-3); font-size: 0.8rem; margin-top: 3px; }
-    .person .issue { font-size: 0.88rem; color: var(--ink-2); }
-    .person .go { color: var(--ink-3); font-size: 1.3rem; }
-    .colhead { font-size: 0.72rem; text-transform: uppercase; color: var(--ink-3); font-weight: bold; }
-    .people-head { cursor: default; padding-top: 0; padding-bottom: 6px; }
-    .people-head:hover { background: none; }
-    @media (max-width: 720px) {
-      .person { grid-template-columns: 1fr 1fr; }
-      .person .go, .people-head { display: none; }
-    }
-
-    /* Meter: label + value above a bar */
-    .meter .top { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--ink-2); margin-bottom: 3px; }
-    .meter .top b { color: var(--ink); }
-    .meter .track { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; }
-    .meter .fill { height: 100%; background: var(--bar); border-radius: 4px; }
-    .meter + .meter { margin-top: 8px; }
-
-    /* Horizontal bars (problem areas) */
-    .hbars { list-style: none; margin: 0; padding: 0; }
-    .hbars li { display: grid; grid-template-columns: minmax(150px, 1.2fr) 2fr 70px; gap: 10px; align-items: center; padding: 6px 0; }
-    .hbars .lbl { font-size: 0.92rem; }
-    .hbars .fill { display: block; height: 14px; background: var(--bar); border-radius: 0 4px 4px 0; min-width: 4px; }
-    .hbars .val { text-align: right; font-weight: bold; font-size: 0.9rem; }
-    .hbars .who { grid-column: 1 / -1; margin-top: -4px; color: var(--ink-3); font-size: 0.8rem; }
-
-    /* Attention list */
-    .attention { list-style: none; margin: 0; padding: 0; }
-    .attention li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #eee; cursor: pointer; }
-    .attention li:last-child { border-bottom: none; }
-    .attention .icon { font-size: 1.1rem; line-height: 1.3; }
-    .attention .txt { font-size: 0.95rem; line-height: 1.4; }
-
-    /* Checklists in the trainee view */
-    .checks { list-style: none; margin: 0; padding: 0; }
-    .checks li { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
-    .checks .mark { font-weight: bold; text-align: center; }
-    .checks .mark.ok { color: var(--good); }
-    .checks .mark.no { color: var(--bad); }
-    .checks .mark.none { color: var(--ink-3); }
-    .checks .right { font-size: 0.88rem; color: var(--ink-2); text-align: right; white-space: nowrap; }
-    .stars { color: #e0a000; letter-spacing: 1px; }
-    .stars span { color: #ddd; }
-    .two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
-
-    /* Score trend chart */
-    .trend { width: 100%; height: auto; display: block; }
-    .trend .grid { stroke: #ececec; stroke-width: 1; }
-    .trend .passline { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 5 4; }
-    .trend .axis { fill: var(--ink-3); font-size: 11px; }
-    .trend .line { fill: none; stroke: var(--bar); stroke-width: 2; }
-    .trend .pt { fill: var(--bar); stroke: #fff; stroke-width: 2; }
-    .trend .pt.fail { fill: #fff; stroke: var(--bar); stroke-width: 2; }
-    .legend { display: flex; gap: 16px; font-size: 0.8rem; color: var(--ink-2); margin-top: 6px; flex-wrap: wrap; }
-    .legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--bar); vertical-align: -1px; margin-right: 4px; }
-    .legend .dot.hollow { background: #fff; border: 2px solid var(--bar); width: 8px; height: 8px; }
-
-    .history { list-style: none; margin: 0; padding: 0; }
-    .history li { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; padding: 9px 4px; border-bottom: 1px solid #f0f0f0; cursor: pointer; align-items: center; border-radius: 4px; }
-    .history li:hover { background: #f5f8fe; }
-    .history .d { color: var(--ink-3); font-size: 0.82rem; }
-    .history .what { font-size: 0.92rem; }
-    .history .what small { display: block; color: var(--ink-2); }
-
-    .banner { background: var(--warn-bg); border-left: 4px solid #e0a000; padding: 10px 12px; border-radius: 4px; margin-bottom: 14px; font-size: 0.92rem; }
-    .login { max-width: 380px; margin: 40px auto; }
-    .login input { width: 100%; padding: 12px; font-size: 1rem; border: 2px solid #bbb; border-radius: 5px; margin: 8px 0; }
-    .err { color: var(--bad); font-weight: bold; }
-    .empty { color: var(--ink-2); padding: 10px 0; }
-  </style>
+  <title>Manager · Register Trainer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="manager.css" />
 </head>
 <body>
-  <header class="hub-top">
-    <h1>MANAGER</h1>
-    <a href="index.html">Training Lab</a>
-  </header>
-
-  <main class="hub-main dash" id="app"></main>
+  <div class="shell">
+    <nav class="side" aria-label="Manager">
+      <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">RT</span><span><b>Register Trainer</b><small>Manager workspace</small></span></a>
+      <div class="nav-label">Workspace</div>
+      <button class="nav-item on" data-nav="team" type="button" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Team<span class="long"> overview</span></span></button>
+      <button class="nav-item" data-nav="manage" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Manage</span></button>
+      <div class="side-foot">
+        <a class="nav-item" href="index.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          <span><span class="long">Back to </span>Training Lab</span></a>
+      </div>
+    </nav>
+    <div class="main"><main id="app"></main></div>
+  </div>
 
   <script src="config.js"></script>
   <script src="engine/storage.js"></script>
@@ -133,9 +35,9 @@
   <script src="scenarios/handels.js"></script>
   <script src="lessons/handels.js"></script>
   <script>
-    // Manager dashboard. Three views: team overview -> one trainee -> one
-    // attempt (with a tap-by-tap replay). Data: the shared database (needs
-    // the manager code), plus anything on this device not sent yet.
+    // Manager workspace. Views: team overview (+ Manage area) -> one trainee
+    // -> one attempt (with a tap-by-tap replay). Data: the shared database
+    // (needs the manager code), plus anything on this device not sent yet.
 
     const app = document.getElementById("app");
     const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -275,13 +177,14 @@
 
     function showLogin(error) {
       app.innerHTML = `
-        <section class="panel login">
-          <h2>Manager sign-in</h2>
+        <section class="card login rise">
+          <span class="brand-mark" aria-hidden="true">RT</span>
+          <h2 style="font-size:1.3rem">Manager sign-in</h2>
           <p class="sub">Enter the manager code to see every trainee's results.</p>
           ${error ? `<p class="err">${esc(error)}</p>` : ""}
           <form id="login">
             <input id="code" type="password" autocomplete="current-password" placeholder="Manager code" />
-            <button class="btn green" type="submit">Show results</button>
+            <button class="btn" type="submit">Show results</button>
           </form>
         </section>`;
       document.getElementById("login").onsubmit = e => {
@@ -320,6 +223,24 @@
       return Object.entries(counts).sort((a, b) => b[1] - a[1]);
     }
 
+    // Accuracy and speed are measured separately from the overall score:
+    // accurate = right items + right payment (from the scoring's mistake codes);
+    // on time = no "slow" mistake (finished within the scenario's goal time).
+    const ACCURACY_CODES = new Set(["wrong_size", "wrong_type", "missed_addon", "missing_item", "extra_item",
+      "missed_change", "no_payment", "wrong_payment_method", "wrong_tender_amount"]);
+    const isAccurate = a => !(a.mistakes || []).some(m => ACCURACY_CODES.has(m.code));
+    const isOnTime = a => !(a.mistakes || []).some(m => m.code === "slow");
+    // Fewer tries than this = not enough evidence to judge a percentage.
+    const MIN_TRIES = 3;
+    // A trend chart needs at least this many challenge tries to say anything.
+    const CHART_MIN = 5;
+
+    function median(values) {
+      if (!values.length) return 0;
+      const s = values.slice().sort((a, b) => a - b), m = Math.floor(s.length / 2);
+      return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+    }
+
     function summarize(g) {
       const all = g.attempts.slice().sort((x, y) => x.finishedAt.localeCompare(y.finishedAt));
       const challenges = all.filter(a => a.mode !== "lesson");
@@ -353,6 +274,9 @@
 
       return {
         ...g, all, challenges, lessons, lessonsDone, passed, lessonsSolid, challengesClear, problems, allProblems, recent, status,
+        accurate: challenges.filter(isAccurate).length,
+        onTime: challenges.filter(isOnTime).length,
+        medianSeconds: median(challenges.map(a => a.seconds)),
         last: all.length ? all[all.length - 1].finishedAt : null,
       };
     }
@@ -360,112 +284,220 @@
     const STATUS = {
       ready: ["✓", "Practice complete"],
       training: ["●", "In training"],
-      help: ["!", "Needs help"],
+      help: ["!", "Needs coaching"],
       new: ["○", "Not started"],
     };
     const pill = (cls, icon, word) => `<span class="status ${esc(cls)}"><span aria-hidden="true">${esc(icon)}</span>${esc(word)}</span>`;
     const statusPill = s => pill(s, STATUS[s][0], STATUS[s][1]);
+    const tries = n => `${n} tr${n === 1 ? "y" : "ies"}`;
+    const initials = name => esc(String(name).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase() || "?");
+    const stars = n => `<span class="stars" title="${n} of 3 stars">${"★".repeat(n)}<span>${"★".repeat(3 - n)}</span></span>`;
 
-    function meter(label, n, d) {
+    // A percentage that always carries its count, and says so when the count
+    // is too small to mean anything (so "100%" from 1 try never looks good).
+    function rate(n, d, unit) {
       n = num(n); d = num(d);
-      return `<div class="meter" title="${esc(label)}: ${n} of ${d}">
-        <div class="top"><span>${esc(label)}</span><b>${n}/${d}</b></div>
-        <div class="track"><div class="fill" style="width:${Math.min(100, pct(n, d))}%"></div></div></div>`;
+      if (!d) return `<div class="metric none"><div class="mv"><b>No ${esc(unit)} yet</b></div></div>`;
+      const thin = d < MIN_TRIES;
+      return `<div class="metric ${thin ? "thin" : ""}" title="${n} of ${d} ${esc(unit)}${thin ? " (too few to judge)" : ""}">
+        <div class="mv"><b>${pct(n, d)}%</b><span>${n} of ${tries(d)}</span></div>
+        <div class="track"><div class="fill grow" style="width:${pct(n, d)}%"></div></div>${thin ? `<span class="few">Too few to judge</span>` : ""}</div>`;
+    }
+
+    // Seven pips, one per lesson: solid = 2+ stars, striped = tried but under 2 stars.
+    function pips(p) {
+      return `<div class="pips" aria-hidden="true">${Lessons.list.map(l =>
+        `<i class="${p.lessonsSolid.includes(l) ? "done" : p.lessonsDone.includes(l) ? "part" : ""}"></i>`).join("")}</div>`;
+    }
+    function completion(p) {
+      return `<div class="metric" title="${p.lessonsSolid.length} of ${Lessons.list.length} lessons done with 2+ stars">
+        <div class="mv"><b>${p.lessonsSolid.length}/${Lessons.list.length}</b><span>lessons</span></div>${pips(p)}</div>`;
+    }
+
+    function ago(iso) {
+      if (!iso) return "";
+      const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+      if (mins < 1) return "just now";
+      if (mins < 60) return `${mins} min ago`;
+      const hrs = Math.round(mins / 60);
+      if (hrs < 24) return `${hrs} hr ago`;
+      const days = Math.round(hrs / 24);
+      return days === 1 ? "yesterday" : days < 30 ? `${days} days ago` : day(iso);
     }
 
     function suggestion(p) {
       const lesson = p.problems.length && Lessons.get(PRACTICE[p.problems[0][0]]);
-      return lesson ? `Have them redo the <b>${esc(lesson.title)}</b> lesson.` : "";
+      return lesson ? `Suggest the <b>${esc(lesson.title)}</b> lesson.` : "";
+    }
+
+    // ---- Navigation ---------------------------------------------------------------
+    // Two areas: "team" (who's where) and "manage" (codes + data controls).
+    let TAB = "team";
+    let QUERY = "";        // roster search text
+    let SHOW = "all";      // roster status filter
+    let PLAYER = null;     // replay animation timer
+
+    function setNav(which) {
+      document.querySelectorAll("[data-nav]").forEach(b => {
+        const on = b.dataset.nav === which;
+        b.classList.toggle("on", on);
+        if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+      });
+    }
+    document.querySelectorAll("[data-nav]").forEach(b => b.onclick = () => {
+      TAB = b.dataset.nav;
+      showOverview();
+    });
+    function stopPlayer() { if (PLAYER) { clearTimeout(PLAYER); PLAYER = null; } }
+
+    function sourceChip() {
+      return SOURCE === "database"
+        ? `<span class="chip"><span class="dot"></span>All devices</span>`
+        : `<span class="chip local"><span class="dot"></span>This device only</span>`;
+    }
+    function storeSelect(filter) {
+      return STORES.length ? `
+        <label class="sr" for="store-filter" style="position:absolute;left:-9999px">Store</label>
+        <select class="select" id="store-filter">
+          <option value="">All stores</option>
+          ${STORES.map(st => `<option value="${esc(st.id)}" ${st.id === filter ? "selected" : ""}>${esc(st.name)}</option>`).join("")}
+        </select>` : "";
     }
 
     // ---- View 1: the team ------------------------------------------------------
     function showOverview(keepScroll) {
+      stopPlayer();
+      setNav(TAB);
       const order = { help: 0, training: 1, new: 2, ready: 3 };
       const people = trainees().sort((a, b) => order[a.status] - order[b.status] || (b.last || "").localeCompare(a.last || ""));
       const filter = getFilter();
-      const challenges = ALL.filter(a => a.mode !== "lesson" && (!filter || a.storeId === filter));
-      const ready = people.filter(p => p.status === "ready").length;
+      const scoped = ALL.filter(a => !filter || a.storeId === filter);
+      const challenges = scoped.filter(a => a.mode !== "lesson");
+      const count = s => people.filter(p => p.status === s).length;
       const help = people.filter(p => p.status === "help");
 
       const teamProblems = countProblems(challenges, false).slice(0, 6);
       const whoHas = Object.create(null);
       challenges.forEach(a => (a.mistakes || []).forEach(m => (whoHas[m.code] = whoHas[m.code] || new Set()).add(a.trainee.name)));
 
+      const kpi = (s, cls, label, note, i) => `
+        <button class="kpi ${cls} rise ${SHOW === s ? "on" : ""}" style="--i:${i}" data-show="${s}" aria-pressed="${SHOW === s}">
+          <div class="k-top"><span class="k-icon" aria-hidden="true">${STATUS[s][0]}</span>${label}</div>
+          <div class="v">${count(s)}<small> of ${people.length}</small></div>
+          <div class="k-note">${note}</div>
+        </button>`;
+
       app.innerHTML = `
         ${sourceBanner()}
-        ${STORES.length ? `
-        <div class="store-filter">
-          <label for="store-filter">Store</label>
-          <select id="store-filter">
-            <option value="">All stores</option>
-            ${STORES.map(st => `<option value="${esc(st.id)}" ${st.id === filter ? "selected" : ""}>${esc(st.name)}</option>`).join("")}
-          </select>
-        </div>` : ""}
-
-        <section class="kpis" style="margin-bottom:16px">
-          <div class="kpi"><div class="v">${people.length}</div><div class="l">Trainees</div></div>
-          <div class="kpi"><div class="v">${ready}<small> of ${people.length}</small></div><div class="l">Practice complete</div></div>
-          <div class="kpi"><div class="v">${help.length}</div><div class="l">Need help</div></div>
-          <div class="kpi"><div class="v">${pct(challenges.filter(a => a.passed).length, challenges.length)}<small>%</small></div><div class="l">Challenges passed (${challenges.length} tries)</div></div>
-        </section>
-
-        ${help.length ? `
-        <section class="panel">
-          <h2>Needs your attention</h2>
-          <p class="sub">Trainees failing repeatedly or making the same mistake 3+ times.</p>
-          <ul class="attention">${help.map(p => `
-            <li data-id="${esc(p.trainee.id)}">
-              <span class="icon" aria-hidden="true">⚠️</span>
-              <span class="txt"><b>${esc(p.trainee.name)}</b>: ${p.problems.length
-                ? `${esc(problem(p.problems[0][0]).toLowerCase())} (${p.problems[0][1]} of their last ${p.recent.length} challenges).`
-                : `failed ${p.challenges.slice(-5).filter(a => !a.passed).length} of their last 5 challenges.`}
-                ${suggestion(p)}</span>
-            </li>`).join("")}</ul>
-        </section>` : ""}
-
-        <section class="panel">
-          <h2>Trainees</h2>
-          <p class="sub">Practice complete = every lesson done with 2+ stars and the latest try of every challenge passed. A trainer still decides when someone is ready for the live register. Tap a trainee for details.</p>
-          ${people.length ? `
-          <div class="person people-head">
-            <span class="colhead">Trainee</span><span class="colhead">Training</span><span class="colhead">Challenges</span><span class="colhead">Problem lately</span><span></span>
+        <section data-view="team" ${TAB === "team" ? "" : "hidden"}>
+          <div class="page-head">
+            <div><h1>Team overview</h1><p>Who's ready, who's still training, and who needs coaching.</p></div>
+            <div class="head-tools">${storeSelect(filter)}${sourceChip()}</div>
           </div>
-          <ul class="people">${people.map(p => `
-            <li class="person" data-id="${esc(p.trainee.id)}">
-              <div><div class="name">${esc(p.trainee.name)}</div>${p.storeName && !filter ? `<div class="store-tag">${esc(p.storeName)}</div>` : ""}${statusPill(p.status)}<div class="when">${p.last ? "Last practiced " + when(p.last) : ""}</div></div>
-              ${meter("Lessons done", p.lessonsDone.length, Lessons.list.length)}
-              ${meter("Challenges passed", p.passed.length, Scenarios.list.length)}
-              <div class="issue">${p.problems.length ? esc(problem(p.problems[0][0])) : p.challenges.length ? "None lately" : "No challenges yet"}</div>
-              <span class="go" aria-hidden="true">›</span>
-            </li>`).join("")}</ul>` : `<p class="empty">No one has trained yet. Add trainees below, give each their code, and they sign in at the Training Lab.</p>`}
+
+          <div class="kpis">
+            ${kpi("ready", "k-ready", "Practice complete", "Ready for a trainer sign-off", 0)}
+            ${kpi("training", "k-training", "In training", "Working through lessons", 1)}
+            ${kpi("help", "k-help", "Needs coaching", "Repeated misses lately", 2)}
+            ${kpi("new", "k-new", "Not started", "Has a code, no practice yet", 3)}
+          </div>
+
+          ${help.length ? `
+          <section class="card rise" style="--i:4">
+            <div class="card-head"><div><h2>Needs coaching</h2>
+              <p class="sub">Failing 3 of their last 5 challenges, or making the same mistake 3+ times.</p></div></div>
+            <ul class="attention">${help.map(p => `
+              <li data-id="${esc(p.trainee.id)}">
+                <span class="avatar" aria-hidden="true">${initials(p.trainee.name)}</span>
+                <span class="txt"><b>${esc(p.trainee.name)}</b> ${p.problems.length
+                  ? `${esc(problem(p.problems[0][0]).toLowerCase())} (${p.problems[0][1]} of their last ${p.recent.length} challenges).`
+                  : `failed ${p.recent.filter(a => !a.passed).length} of their last ${p.recent.length} challenges.`}
+                  ${suggestion(p)}</span>
+                <span class="btn small ghost">View details</span>
+              </li>`).join("")}</ul>
+          </section>` : ""}
+
+          <section class="card rise" style="--i:5" id="roster">
+            <div class="card-head"><div><h2>Trainees</h2>
+              <p class="sub">Practice complete = every lesson at 2+ stars and the latest try of every challenge passed. A trainer still signs off on the live register.</p></div></div>
+            ${people.length ? `
+            <div class="toolbar">
+              <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input id="roster-search" type="search" placeholder="Search trainees" aria-label="Search trainees" value="${esc(QUERY)}" autocomplete="off" /></label>
+              <div class="seg" role="group" aria-label="Show">
+                ${[["all", "All", people.length], ["help", "Coaching", count("help")], ["training", "Training", count("training")], ["ready", "Complete", count("ready")], ["new", "New", count("new")]]
+                  .map(([k, label, n]) => `<button data-show="${k}" class="${SHOW === k ? "on" : ""}" aria-pressed="${SHOW === k}">${label}<span class="n">${n}</span></button>`).join("")}
+              </div>
+            </div>
+            <div class="people-head" aria-hidden="true">
+              <span class="colhead">Trainee</span><span class="colhead">Status</span><span class="colhead">Training</span>
+              <span class="colhead">Accuracy</span><span class="colhead">Speed</span><span class="colhead">Last practice</span><span></span>
+            </div>
+            <ul class="people">${people.map(p => `
+              <li class="person" data-id="${esc(p.trainee.id)}" data-name="${esc(p.trainee.name.toLowerCase())}" data-status="${p.status}">
+                <div class="who"><span class="avatar" aria-hidden="true">${initials(p.trainee.name)}</span>
+                  <div style="min-width:0"><div class="name">${esc(p.trainee.name)}</div>${p.storeName && !filter ? `<div class="store-tag">${esc(p.storeName)}</div>` : ""}</div></div>
+                <div class="st">${statusPill(p.status)}</div>
+                <div><span class="cell-l">Training</span>${completion(p)}</div>
+                <div><span class="cell-l">Accuracy</span>${rate(p.accurate, p.challenges.length, "challenges")}</div>
+                <div><span class="cell-l">Speed</span>${rate(p.onTime, p.challenges.length, "challenges")}</div>
+                <div class="when"><span class="cell-l">Last practice</span>${p.last ? `${esc(ago(p.last))}<small>${esc(when(p.last))}</small>` : "Never"}</div>
+                <div class="act"><button class="btn small soft" type="button">View details</button></div>
+              </li>`).join("")}</ul>
+            <p class="no-match" id="no-match" hidden>No trainees match.</p>`
+            : `<p class="empty">No one has trained yet. Add trainees in <b>Manage</b>, give each their code, and they sign in at the Training Lab.</p>`}
+          </section>
+
+          <div class="grid-2">
+            <section class="card rise" style="--i:6">
+              <div class="card-head"><div><h2>What the team misses most</h2>
+                <p class="sub">Challenge tries with each mistake, out of ${tries(challenges.length)}.</p></div></div>
+              ${teamProblems.length ? `<ul class="hbars">${teamProblems.map(([code, n]) => `
+                <li title="${esc(problem(code))}: ${n} of ${challenges.length} tries">
+                  <span class="lbl">${esc(problem(code))}</span>
+                  <span class="val">${pct(n, challenges.length)}% · ${n} of ${challenges.length}</span>
+                  <span class="barwrap"><span class="fill grow" style="width:${Math.max(2, pct(n, challenges.length))}%"></span></span>
+                  <span class="whos">${[...whoHas[code]].map(esc).join(", ")}</span>
+                </li>`).join("")}</ul>` : `<p class="empty">${challenges.length ? "No mistakes recorded yet." : "No challenge tries yet."}</p>`}
+            </section>
+            <section class="card rise" style="--i:7">
+              <div class="card-head"><div><h2>Practice activity</h2>
+                <p class="sub">Lessons and challenges finished per day, last 14 days.</p></div></div>
+              ${activity(scoped)}
+            </section>
+          </div>
         </section>
 
-        ${rosterSection(filter)}
-
-        <section class="panel">
-          <h2>What the team gets wrong most</h2>
-          <p class="sub">Share of all challenge tries with each mistake. Use this to decide what to coach on shift.</p>
-          ${teamProblems.length ? `<ul class="hbars">${teamProblems.map(([code, n]) => `
-            <li title="${esc(problem(code))}: ${n} of ${challenges.length} tries">
-              <span class="lbl">${esc(problem(code))}</span>
-              <span><span class="fill" style="width:${Math.max(2, (100 * n) / teamProblems[0][1])}%"></span></span>
-              <span class="val">${pct(n, challenges.length)}%</span>
-              <span class="who">${[...whoHas[code]].map(esc).join(", ")}</span>
-            </li>`).join("")}</ul>` : `<p class="empty">No mistakes recorded yet.</p>`}
-        </section>
-
-        <section class="panel">
-          <h2>Data</h2>
-          <p class="sub">${SOURCE === "database" ? "Results from every device (shared database)." : "Results saved on this device."}</p>
-          <button class="btn gray small" id="export">Download results (JSON)</button>
-          ${Storage.rejectedCount() ? `<button class="btn gray small" id="retry">Resend rejected results from this device</button>` : ""}
-          <button class="btn red small" id="clear">${SOURCE === "database" ? "Delete shared results" : "Remove sent results from this device"}</button>
-          ${SOURCE === "database" ? `<button class="btn gray small" id="signout">Sign out</button>` : ""}
+        <section data-view="manage" ${TAB === "manage" ? "" : "hidden"}>
+          <div class="page-head">
+            <div><h1>Manage</h1><p>Trainee codes, stores, and your results data.</p></div>
+            <div class="head-tools">${storeSelect(filter).replace('id="store-filter"', 'id="store-filter-2"').replace('for="store-filter"', 'for="store-filter-2"')}${sourceChip()}</div>
+          </div>
+          ${rosterSection(filter)}
+          <section class="card danger-zone">
+            <div class="card-head"><div><h2>Data</h2>
+              <p class="sub">${SOURCE === "database" ? "Results from every device (shared database)." : "Results saved on this device."}</p></div></div>
+            <div class="row"><p><b>Download results</b>A copy of every result as a JSON file.</p><button class="btn ghost small" id="export">Download</button></div>
+            ${Storage.rejectedCount() ? `<div class="row"><p><b>Resend rejected results</b>Try again to send this device's rejected results.</p><button class="btn ghost small" id="retry">Resend</button></div>` : ""}
+            ${SOURCE === "database" ? `<div class="row"><p><b>Sign out</b>Forget the manager code on this device.</p><button class="btn ghost small" id="signout">Sign out</button></div>` : ""}
+            <div class="row"><p><b>${SOURCE === "database" ? "Delete shared results" : "Remove sent results from this device"}</b>Permanently removes results. This can't be undone.</p>
+              <button class="btn danger small" id="clear">${SOURCE === "database" ? "Delete results…" : "Remove…"}</button></div>
+          </section>
         </section>`;
 
       app.querySelectorAll("[data-id]").forEach(el => el.onclick = () => showTrainee(el.dataset.id));
-      const storeFilter = document.getElementById("store-filter");
-      if (storeFilter) storeFilter.onchange = () => { setFilter(storeFilter.value); showOverview(true); };
+      app.querySelectorAll("[data-show]").forEach(el => el.onclick = () => {
+        SHOW = SHOW === el.dataset.show && el.classList.contains("kpi") ? "all" : el.dataset.show;
+        showOverview(true);
+        if (el.classList.contains("kpi")) document.getElementById("roster").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      const search = document.getElementById("roster-search");
+      if (search) search.oninput = () => { QUERY = search.value; applyRosterFilter(); };
+      applyRosterFilter();
+      ["store-filter", "store-filter-2"].forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) sel.onchange = () => { setFilter(sel.value); showOverview(true); };
+      });
       wireRoster();
       document.getElementById("export").onclick = exportJSON;
       document.getElementById("clear").onclick = clearAll;
@@ -480,34 +512,82 @@
       if (!keepScroll) window.scrollTo(0, 0);
     }
 
+    // Hides roster rows that don't match the search box and status filter.
+    function applyRosterFilter() {
+      const q = QUERY.trim().toLowerCase();
+      let shown = 0;
+      app.querySelectorAll(".people .person").forEach(li => {
+        const ok = (!q || li.dataset.name.includes(q)) && (SHOW === "all" || li.dataset.status === SHOW);
+        li.hidden = !ok;
+        if (ok) shown++;
+      });
+      const none = document.getElementById("no-match");
+      if (none) none.hidden = shown > 0;
+    }
+
+    // Columns of attempts per day; a short summary until there's enough to chart.
+    function activity(list) {
+      const days = [];
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(today); d.setDate(d.getDate() - i);
+        days.push({ d, n: 0 });
+      }
+      list.forEach(a => {
+        const t = new Date(a.finishedAt); t.setHours(0, 0, 0, 0);
+        const slot = days.find(x => x.d.getTime() === t.getTime());
+        if (slot) slot.n++;
+      });
+      const total = days.reduce((s, x) => s + x.n, 0);
+      const active = days.filter(x => x.n).length;
+      if (total < CHART_MIN || active < 2) {
+        return `<div class="minis">
+          <div class="mini"><span class="s">${total}</span><small>sessions, 14 days</small></div>
+          <div class="mini"><span class="s">${active}</span><small>days with practice</small></div>
+          <div class="mini"><span class="s">${list.length}</span><small>sessions all time</small></div>
+        </div><p class="hint-note">A daily chart appears once there are ${CHART_MIN}+ sessions on 2+ days.</p>`;
+      }
+      const max = Math.max(...days.map(x => x.n));
+      const label = d => d.toLocaleDateString([], { month: "short", day: "numeric" });
+      return `<div class="cols" role="img" aria-label="Sessions per day for the last 14 days, ${total} total">${days.map((x, i) => `
+          <div class="c" tabindex="0" style="--i:${i}"><i class="${x.n ? "" : "zero"}" style="height:${x.n ? Math.max(4, (100 * x.n) / max) : 2}%"></i>
+            <span class="tip">${esc(label(x.d))}: ${x.n} session${x.n === 1 ? "" : "s"}</span></div>`).join("")}</div>
+        <div class="cols-x"><span>${esc(label(days[0].d))}</span><span>Today</span></div>
+        <p class="hint-note">${total} sessions on ${active} days. Hover or tap a bar for the count.</p>`;
+    }
+
     // ---- Trainee codes ---------------------------------------------------------------
     function rosterSection(filter) {
-      if (SOURCE !== "database") return "";
+      if (SOURCE !== "database") return `
+        <section class="card">
+          <h2>Trainee codes</h2>
+          <p class="sub">Codes need the shared database. Connect it to add trainees and give them codes.</p>
+        </section>`;
       if (!ROSTER) return `
-        <section class="panel">
+        <section class="card">
           <h2>Trainee codes</h2>
           <p class="sub">Not set up yet: run <b>supabase/003_trainee_codes.sql</b> in the Supabase SQL Editor, then reload this page.</p>
         </section>`;
       const stores = STORES.filter(st => !filter || st.id === filter);
       return `
-        <section class="panel" id="codes">
+        <section class="card" id="codes">
           <h2>Trainee codes</h2>
           <p class="sub">Give each trainee their 4-digit code. They type it in the Training Lab, and every result is saved under them and their store. Turn a code off when someone leaves; their results stay.</p>
           ${stores.map(st => {
             const people = ROSTER.filter(r => r.storeId === st.id);
             return `
-              <div class="codes-store"><h3>${esc(st.name)}</h3><button class="btn gray small" data-rename="${esc(st.id)}">Rename</button></div>
+              <div class="codes-store"><h3>${esc(st.name)}</h3><button class="btn ghost small" data-rename="${esc(st.id)}">Rename</button></div>
               ${people.length ? `<ul class="codes">${people.map(r => `
                 <li class="${r.active ? "" : "off"}">
                   <span>${esc(r.name)}${r.active ? "" : " (off)"}</span>
                   <span class="code" aria-label="Code">${esc(r.code)}</span>
-                  <button class="btn ${r.active ? "gray" : "green"} small" data-toggle="${esc(r.id)}" data-active="${r.active ? "1" : ""}">${r.active ? "Turn off" : "Turn on"}</button>
+                  <button class="btn ${r.active ? "ghost" : "soft"} small" data-toggle="${esc(r.id)}" data-active="${r.active ? "1" : ""}">${r.active ? "Turn off" : "Turn on"}</button>
                 </li>`).join("")}</ul>` : `<p class="empty">No trainees yet.</p>`}`;
           }).join("")}
           <form class="add-trainee" id="add-trainee">
             <input id="new-name" maxlength="40" autocomplete="off" placeholder="First name + last initial" aria-label="Trainee name" />
-            <select id="new-store" aria-label="Store">${STORES.map(st => `<option value="${esc(st.id)}" ${st.id === filter ? "selected" : ""}>${esc(st.name)}</option>`).join("")}</select>
-            <button class="btn green" type="submit">Add trainee</button>
+            <select class="select" id="new-store" aria-label="Store">${STORES.map(st => `<option value="${esc(st.id)}" ${st.id === filter ? "selected" : ""}>${esc(st.name)}</option>`).join("")}</select>
+            <button class="btn" type="submit">Add trainee</button>
           </form>
         </section>`;
     }
@@ -547,115 +627,197 @@
 
     // ---- View 2: one trainee -----------------------------------------------------
     function summarySentence(p) {
-      if (!p.all.length) return "Hasn't started yet.";
-      const parts = [`Finished ${p.lessonsDone.length} of ${Lessons.list.length} lessons and passed ${p.passed.length} of ${Scenarios.list.length} challenges.`];
+      if (!p.all.length) return "Hasn't started yet. Their first lesson is the Register tour.";
+      const next = Lessons.list.find(l => !p.lessonsSolid.includes(l));
+      const parts = [`Has ${p.lessonsSolid.length} of ${Lessons.list.length} lessons at 2+ stars and passed the latest try of ${p.challengesClear.length} of ${Scenarios.list.length} challenges.`];
       if (p.problems.length) parts.push(`Problem lately: <b>${esc(problem(p.problems[0][0]).toLowerCase())}</b>. ${suggestion(p)}`);
       if (p.status === "ready") parts.push("Practice complete. Next step: a trainer watches them on the live register before signing off.");
-      else if (p.status !== "help" && p.passed.length === Scenarios.list.length && p.challengesClear.length < Scenarios.list.length) parts.push("Passed every challenge before, but failed the latest try of at least one.");
+      else {
+        if (p.status !== "help" && p.passed.length === Scenarios.list.length && p.challengesClear.length < Scenarios.list.length) parts.push("Passed every challenge before, but failed the latest try of at least one.");
+        if (next && !p.problems.length) parts.push(`Next lesson: <b>${esc(next.title)}</b>.`);
+      }
       return parts.join(" ");
     }
 
+    // One of the three separate measures, as a card.
+    function metricCard(label, n, d, unit, note) {
+      n = num(n); d = num(d);
+      const thin = d > 0 && d < MIN_TRIES;
+      return `<div class="mcard rise ${thin || !d ? "thin" : ""}" style="--i:1">
+        <div class="m-label"><span>${esc(label)}</span>${thin ? `<span class="evidence" title="Fewer than ${MIN_TRIES} tries">Too few tries</span>` : ""}</div>
+        ${d ? `<div class="m-big">${pct(n, d)}%<small> · ${n} of ${tries(d)}</small></div>
+          <div class="track"><div class="fill grow" style="width:${pct(n, d)}%"></div></div>`
+          : `<div class="m-big"><small>No ${esc(unit)} yet</small></div><div class="track"></div>`}
+        <div class="m-note ${thin || !d ? "muted" : ""}">${note}</div>
+      </div>`;
+    }
+
     function showTrainee(id) {
+      stopPlayer();
+      setNav("team");
       const p = trainees().find(x => x.trainee.id === id);
       if (!p) return showOverview();
-      const recent = p.all.slice().reverse();
+      const history = p.all.slice().reverse();
+      const latest = history[0];
+      const store = p.storeName ? `${esc(p.storeName)} · ` : "";
 
       app.innerHTML = `
         ${sourceBanner()}
-        <a class="back-link" id="back">← All trainees</a>
-        <section class="panel">
-          <h2 style="font-size:1.5rem">${esc(p.trainee.name)} ${statusPill(p.status)}</h2>
-          <p class="sub" style="font-size:1rem">${summarySentence(p)}</p>
-          <div class="kpis">
-            <div class="kpi" style="background:#f5f8fe">${meter("Training lessons done", p.lessonsDone.length, Lessons.list.length)}</div>
-            <div class="kpi" style="background:#f5f8fe">${meter("Challenges passed", p.passed.length, Scenarios.list.length)}</div>
+        <button class="back-link" id="back" type="button">← All trainees</button>
+
+        <section class="card hero rise">
+          <span class="avatar lg" aria-hidden="true">${initials(p.trainee.name)}</span>
+          <div style="min-width:0">
+            <h1>${esc(p.trainee.name)} ${statusPill(p.status)}</h1>
+            <div class="meta">${store}${p.last ? `Last practice ${esc(ago(p.last))} · ${tries(p.all.length)} in total` : "No practice yet"}</div>
           </div>
+          <div class="hero-act">${latest ? `<button class="btn" data-attempt="${esc(latest.id)}" type="button">▶ Replay latest session</button>` : ""}</div>
+          <p class="summary">${summarySentence(p)}</p>
         </section>
 
-        <section class="panel">
-          <h2>Challenge scores over time</h2>
-          <p class="sub">Each dot is one try. Pass = right order + right payment + 80 or more (dashed line).</p>
-          ${trendChart(p.challenges)}
-        </section>
+        <div class="metrics3">
+          <div class="mcard rise" style="--i:1">
+            <div class="m-label"><span>Training completion</span></div>
+            <div class="m-big">${p.lessonsSolid.length}<small> of ${Lessons.list.length} lessons</small></div>
+            ${pips(p)}
+            <div class="m-note">${p.lessonsSolid.length} at 2+ stars · ${p.lessonsDone.length} tried · ${tries(p.lessons.length)}</div>
+          </div>
+          ${metricCard("Challenge accuracy", p.accurate, p.challenges.length, "challenges",
+            p.challenges.length ? `Right items and right payment. Latest try passed on ${p.challengesClear.length} of ${Scenarios.list.length} challenges.` : "Accuracy shows after their first challenge.")}
+          ${metricCard("Speed", p.onTime, p.challenges.length, "challenges",
+            p.challenges.length ? `Finished within the goal time. Typical time ${p.medianSeconds.toFixed(1)}s.` : "Speed shows after their first challenge.")}
+        </div>
 
-        <div class="two-col">
-          <section class="panel">
-            <h2>Training lessons</h2>
-            <ul class="checks">${Lessons.list.map(l => {
-              const tries = p.lessons.filter(a => a.scenarioId === l.id);
-              const best = tries.reduce((b, a) => Math.max(b, a.stars || 0), 0);
-              return `<li><span class="mark ${tries.length ? "ok" : "none"}">${tries.length ? "✓" : "–"}</span>
-                <span>${esc(l.title)}</span>
-                <span class="right">${tries.length ? `<span class="stars" title="${best} of 3 stars">${"★".repeat(best)}<span>${"★".repeat(3 - best)}</span></span>` : "Not done"}</span></li>`;
-            }).join("")}</ul>
+        <div class="grid-2 stack-gap">
+          <section class="card rise" style="--i:2">
+            <div class="card-head"><div><h2>Lesson path</h2><p class="sub">Seven lessons in order. Filled = 2+ stars (counts toward Practice complete).</p></div></div>
+            <ol class="path">${Lessons.list.map((l, i) => {
+              const ts = p.lessons.filter(a => a.scenarioId === l.id);
+              const best = ts.reduce((b, a) => Math.max(b, a.stars || 0), 0);
+              const cls = p.lessonsSolid.includes(l) ? "solid" : ts.length ? "tried" : "";
+              return `<li class="${cls}"><span class="node">${cls === "solid" ? "✓" : i + 1}</span>
+                <span class="lt">${esc(l.title)}<small>${ts.length ? tries(ts.length) : "Not started"}</small></span>
+                <span>${ts.length ? stars(best) : ""}</span></li>`;
+            }).join("")}</ol>
           </section>
-          <section class="panel">
-            <h2>Challenges</h2>
+          <section class="card rise" style="--i:3">
+            <div class="card-head"><div><h2>Challenges</h2><p class="sub">Result of the latest try, with best score and try count.</p></div></div>
             <ul class="checks">${Scenarios.list.map(s => {
-              const tries = p.challenges.filter(a => a.scenarioId === s.id);
-              const ok = tries.some(a => a.passed);
-              const best = tries.length ? Math.max(...tries.map(a => a.score)) : null;
-              return `<li><span class="mark ${ok ? "ok" : tries.length ? "no" : "none"}">${ok ? "✓" : tries.length ? "✗" : "–"}</span>
-                <span>${esc(s.title)}</span>
-                <span class="right">${tries.length ? `best ${best} · ${tries.length} tr${tries.length > 1 ? "ies" : "y"}` : "Not tried"}</span></li>`;
+              const ts = p.challenges.filter(a => a.scenarioId === s.id);
+              const last = ts[ts.length - 1];
+              const best = ts.length ? Math.max(...ts.map(a => a.score)) : null;
+              return `<li><span class="mark ${!last ? "none" : last.passed ? "ok" : "no"}" aria-hidden="true">${!last ? "–" : last.passed ? "✓" : "✗"}</span>
+                <span class="ct">${esc(s.title)}<small>${!last ? "Not tried" : last.passed ? "Latest try passed" : "Latest try not passed"}</small></span>
+                <span class="right">${ts.length ? `best ${best} · ${tries(ts.length)}` : ""}</span></li>`;
             }).join("")}</ul>
           </section>
         </div>
 
-        <section class="panel">
-          <h2>Problem areas</h2>
-          <p class="sub">How many of ${esc(p.trainee.name)}'s challenge tries (all time) had each mistake.</p>
+        <section class="card rise" style="--i:4">
+          <div class="card-head"><div><h2>Challenge scores</h2>
+            <p class="sub">${p.challenges.length >= CHART_MIN ? "Each dot is one try. Pass = right order + right payment + 80 or more." : "Every try so far. A trend chart appears after " + CHART_MIN + " tries."}</p></div></div>
+          ${p.challenges.length >= CHART_MIN ? trendChart(p.challenges) : miniResults(p.challenges)}
+        </section>
+
+        <section class="card rise" style="--i:5">
+          <div class="card-head"><div><h2>Problem areas</h2>
+            <p class="sub">How many of ${esc(p.trainee.name)}'s challenge tries (all time) had each mistake.</p></div></div>
           ${p.allProblems.length ? `<ul class="hbars">${p.allProblems.map(([code, n]) => `
             <li title="${esc(problem(code))}: ${n} of ${p.challenges.length}">
               <span class="lbl">${esc(problem(code))}</span>
-              <span><span class="fill" style="width:${Math.max(2, pct(n, p.challenges.length))}%"></span></span>
               <span class="val">${n} of ${p.challenges.length}</span>
+              <span class="barwrap"><span class="fill grow" style="width:${Math.max(2, pct(n, p.challenges.length))}%"></span></span>
             </li>`).join("")}</ul>` : `<p class="empty">${p.challenges.length ? "No mistakes." : "No challenges yet."}</p>`}
         </section>
 
-        <section class="panel">
-          <h2>Everything they've done</h2>
-          <p class="sub">Tap any row to replay it tap by tap.</p>
-          <ul class="history">${recent.map(a => `
-            <li data-attempt="${esc(a.id)}">
-              <span class="d">${when(a.finishedAt)}</span>
-              <span class="what">${a.mode === "lesson" ? "Lesson: " : ""}${esc(a.scenarioTitle)}
-                <small>${a.mode === "lesson"
+        <section class="card rise" style="--i:6" id="sessions">
+          <div class="card-head"><div><h2>Sessions</h2><p class="sub">Newest first. Replay any session tap by tap.</p></div></div>
+          ${history.length ? `<ul class="history">${history.map(a => `
+            <li>
+              <span class="kind ${a.mode === "lesson" ? "l" : "c"}" aria-hidden="true">${a.mode === "lesson" ? "L" : "C"}</span>
+              <span class="what">${a.mode === "lesson" ? "Lesson: " : "Challenge: "}${esc(a.scenarioTitle)}
+                <small>${esc(when(a.finishedAt))} · ${a.mode === "lesson"
                   ? `${a.hintsNeeded ? a.hintsNeeded + " hint" + (a.hintsNeeded > 1 ? "s" : "") : "no hints"} · ${a.wrongTaps || 0} wrong taps · ${Math.round(a.seconds)}s`
                   : (a.mistakes && a.mistakes.length ? a.mistakes.map(m => esc(problem(m.code))).join(" · ") : "No mistakes") + ` · ${a.seconds.toFixed(1)}s`}</small></span>
-              ${a.mode === "lesson"
-                ? `<span class="stars">${"★".repeat(a.stars || 0)}<span>${"★".repeat(3 - (a.stars || 0))}</span></span>`
-                : pill(a.passed ? "ready" : "help", a.passed ? "✓" : "✗", a.score)}
-            </li>`).join("")}</ul>
+              ${a.mode === "lesson" ? stars(a.stars || 0) : pill(a.passed ? "ready" : "help", a.passed ? "✓" : "✗", a.score)}
+              <button class="btn small ghost" data-attempt="${esc(a.id)}" type="button">▶ Replay</button>
+            </li>`).join("")}</ul>` : `<p class="empty">No sessions yet.</p>`}
         </section>`;
 
-      document.getElementById("back").onclick = () => showOverview();
-      app.querySelectorAll("[data-attempt]").forEach(li => li.onclick = () => showAttempt(li.dataset.attempt));
+      document.getElementById("back").onclick = () => { TAB = "team"; showOverview(); };
+      app.querySelectorAll("[data-attempt]").forEach(b => b.onclick = () => showAttempt(b.dataset.attempt));
+      wireChart();
       window.scrollTo(0, 0);
     }
 
+    // Small result tiles for short histories (a 2-point "trend" means nothing).
+    function miniResults(list) {
+      if (!list.length) return `<p class="empty">No challenges yet.</p>`;
+      return `<div class="minis">${list.slice().reverse().map(a => `
+        <div class="mini" title="${esc(a.scenarioTitle)}">
+          <span class="s ${a.passed ? "ok" : "no"}">${a.score}<small style="font-weight:500"> ${a.passed ? "✓ pass" : "✗ not yet"}</small></span>
+          <small>${esc(a.scenarioTitle)}</small><small>${esc(day(a.finishedAt))} · ${a.seconds.toFixed(1)}s</small>
+        </div>`).join("")}</div>`;
+    }
+
+    let CHART_ROWS = [];
     // Line chart of challenge scores, with the pass line at 80.
     function trendChart(list) {
-      if (!list.length) return `<p class="empty">No challenges yet.</p>`;
-      const W = 640, H = 200, L = 34, R = 12, T = 12, B = 26;
+      CHART_ROWS = list.map(a => ({ d: day(a.finishedAt), t: a.scenarioTitle, s: a.score, ok: a.passed, sec: a.seconds }));
+      const W = 720, H = 220, L = 34, R = 14, T = 14, B = 28;
       const x = i => list.length === 1 ? (L + W - R) / 2 : L + (i * (W - L - R)) / (list.length - 1);
       const y = v => T + ((100 - v) * (H - T - B)) / 100;
       const pts = list.map((a, i) => [x(i), y(a.score)]);
-      const grid = [0, 50, 100].map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join("");
+      const grid = [0, 50, 100].map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join("");
       const step = Math.max(1, Math.ceil(list.length / 6));
       const xlabels = list.map((a, i) => i % step === 0 || i === list.length - 1
-        ? `<text class="axis" x="${x(i)}" y="${H - 6}" text-anchor="${list.length > 1 && i === list.length - 1 ? "end" : i === 0 && list.length > 1 ? "start" : "middle"}">${esc(day(a.finishedAt))}</text>` : "").join("");
+        ? `<text class="axis" x="${x(i)}" y="${H - 6}" text-anchor="${i === list.length - 1 ? "end" : i === 0 ? "start" : "middle"}">${esc(day(a.finishedAt))}</text>` : "").join("");
+      const line = pts.map(p => p.join(",")).join(" ");
+      const area = `${L},${y(0)} ${line} ${W - R},${y(0)}`;
+      const gap = list.length > 1 ? (W - L - R) / (list.length - 1) : 40;
       return `
-        <svg class="trend" viewBox="0 0 ${W} ${H}" role="img" aria-label="Challenge scores over time">
-          ${grid}
-          <line class="passline" x1="${L}" x2="${W - R}" y1="${y(80)}" y2="${y(80)}"/>
-          <text class="axis" x="${W - R}" y="${y(80) - 5}" text-anchor="end">Pass 80</text>
-          ${list.length > 1 ? `<polyline class="line" points="${pts.map(p => p.join(",")).join(" ")}"/>` : ""}
-          ${list.map((a, i) => `<circle class="pt ${a.passed ? "" : "fail"}" cx="${pts[i][0]}" cy="${pts[i][1]}" r="6">
-            <title>${esc(day(a.finishedAt))} · ${esc(a.scenarioTitle)} · ${a.score} (${a.passed ? "passed" : "not yet"})</title></circle>`).join("")}
-          ${xlabels}
-        </svg>
-        <div class="legend"><span><span class="dot"></span>Passed</span><span><span class="dot hollow"></span>Not passed</span><span>Hover or tap a dot for details</span></div>`;
+        <div class="chart-wrap">
+          <svg class="trend" viewBox="0 0 ${W} ${H}" role="img" aria-label="Challenge scores over time: ${list.length} tries, ${list.filter(a => a.passed).length} passed">
+            <defs><linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1f3f9e" stop-opacity="0.16"/><stop offset="1" stop-color="#1f3f9e" stop-opacity="0"/></linearGradient></defs>
+            ${grid}
+            <polygon class="area" points="${area}"/>
+            <line class="passline" x1="${L}" x2="${W - R}" y1="${y(80)}" y2="${y(80)}"/>
+            <text class="axis" x="${W - R}" y="${y(80) - 6}" text-anchor="end">Pass 80</text>
+            <polyline class="line" points="${line}"/>
+            ${list.map((a, i) => `<rect class="hit" x="${pts[i][0] - gap / 2}" y="${T}" width="${gap}" height="${H - T - B}" data-i="${i}"/>
+              <circle class="pt ${a.passed ? "" : "fail"}" cx="${pts[i][0]}" cy="${pts[i][1]}" r="5"/>`).join("")}
+            ${xlabels}
+          </svg>
+          <div class="chart-tip" role="status"></div>
+        </div>
+        <div class="legend"><span><span class="dot"></span>Passed</span><span><span class="dot hollow"></span>Not passed</span><span><span class="dash"></span>Pass line (80)</span></div>
+`;
+    }
+
+    // Hover / tap tooltip for the trend chart.
+    function wireChart() {
+      const svg = app.querySelector(".trend");
+      if (!svg) return;
+      const rows = CHART_ROWS;
+      const tip = app.querySelector(".chart-tip");
+      const dots = svg.querySelectorAll(".pt");
+      const show = i => {
+        const r = rows[i], dot = dots[i];
+        dots.forEach(d => d.classList.remove("hot"));
+        dot.classList.add("hot");
+        tip.textContent = "";
+        const b = document.createElement("b"); b.textContent = `${r.s} · ${r.ok ? "passed" : "not yet"}`;
+        tip.append(b, document.createElement("br"), `${r.t}`, document.createElement("br"), `${r.d} · ${Number(r.sec).toFixed(1)}s`);
+        const box = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
+        tip.style.left = `${(dot.cx.baseVal.value / vb.width) * box.width}px`;
+        tip.style.top = `${(dot.cy.baseVal.value / vb.height) * box.height}px`;
+        tip.classList.add("show");
+      };
+      svg.querySelectorAll(".hit").forEach(h => {
+        h.addEventListener("mouseenter", () => show(+h.dataset.i));
+        h.addEventListener("click", () => show(+h.dataset.i));
+      });
+      svg.addEventListener("mouseleave", () => { tip.classList.remove("show"); dots.forEach(d => d.classList.remove("hot")); });
     }
 
     // ---- View 3: one attempt, replayed -------------------------------------------
@@ -695,47 +857,76 @@
     }
 
     function showAttempt(id) {
+      stopPlayer();
       const a = ALL.find(x => x.id === id);
       if (!a) return showOverview();
       const t0 = a.events.length ? a.events[0].t : 0;
       const isLesson = a.mode === "lesson";
       const endIdx = a.events.findIndex(e => e.type === (isLesson ? "lesson_completed" : "transaction_completed"));
       const shown = endIdx === -1 ? a.events : a.events.slice(0, endIdx + 1);
+      const sc = (label, v, max) => `<div class="sc"><div class="l">${esc(label)}</div><div class="v">${num(v)}<small>/${max}</small></div></div>`;
 
       app.innerHTML = `
         ${sourceBanner()}
-        <a class="back-link" id="back">← ${esc(a.trainee.name)}</a>
-        <section class="panel">
-          <h2 style="font-size:1.3rem">${isLesson ? "Lesson: " : ""}${esc(a.scenarioTitle)}
-            ${isLesson ? `<span class="stars">${"★".repeat(a.stars || 0)}<span>${"★".repeat(3 - (a.stars || 0))}</span></span>`
-                       : pill(a.passed ? "ready" : "help", a.passed ? "✓" : "✗", a.passed ? "Passed" : "Not yet")}</h2>
-          <p class="sub">${esc(a.trainee.name)} · ${when(a.finishedAt)} · ${a.seconds.toFixed(1)}s</p>
+        <button class="back-link" id="back" type="button">← ${esc(a.trainee.name)}</button>
+        <section class="card rise">
+          <div class="page-head" style="margin-bottom:0">
+            <div><h1 style="font-size:1.35rem">${isLesson ? "Lesson: " : ""}${esc(a.scenarioTitle)}</h1>
+              <p>${esc(a.trainee.name)} · ${when(a.finishedAt)} · ${a.seconds.toFixed(1)}s</p></div>
+            <div>${isLesson ? stars(a.stars || 0) : pill(a.passed ? "ready" : "help", a.passed ? "✓" : "✗", a.passed ? "Passed" : "Not yet")}</div>
+          </div>
           ${isLesson ? `
-            <ul class="checks">
-              <li><span class="mark ${a.hintsNeeded ? "no" : "ok"}">${a.hintsNeeded ? "!" : "✓"}</span><span>Steps where the coach had to help</span><span class="right">${a.hintsNeeded || 0}</span></li>
-              <li><span class="mark ${a.wrongTaps ? "no" : "ok"}">${a.wrongTaps ? "!" : "✓"}</span><span>Wrong taps</span><span class="right">${a.wrongTaps || 0}</span></li>
+            <ul class="checks" style="margin-top:12px">
+              <li><span class="mark ${a.hintsNeeded ? "no" : "ok"}">${a.hintsNeeded ? "!" : "✓"}</span><span class="ct">Steps where the coach had to help</span><span class="right">${a.hintsNeeded || 0}</span></li>
+              <li><span class="mark ${a.wrongTaps ? "no" : "ok"}">${a.wrongTaps ? "!" : "✓"}</span><span class="ct">Wrong taps</span><span class="right">${a.wrongTaps || 0}</span></li>
             </ul>` : `
-            <div class="kpis" style="margin-bottom:12px">
-              <div class="kpi" style="background:#f5f8fe"><div class="v">${a.score}<small>/100</small></div><div class="l">Score</div></div>
-              <div class="kpi" style="background:#f5f8fe">${meter("Order", a.points.accuracy, 50)}${meter("Payment", a.points.payment, 20)}</div>
-              <div class="kpi" style="background:#f5f8fe">${meter("Corrections", a.points.corrections, 15)}${meter("Speed", a.points.speed, 15)}</div>
+            <div class="score-row">
+              <div class="sc" style="background:var(--accent-soft);border-color:transparent"><div class="l">Score</div><div class="v">${a.score}<small>/100</small></div></div>
+              ${sc("Order", a.points.accuracy, 50)}${sc("Payment", a.points.payment, 20)}
+              ${sc("Corrections", a.points.corrections, 15)}${sc("Speed", a.points.speed, 15)}
             </div>
-            <ul class="feedback">${a.feedback.map(f => `<li class="${f.ok ? "ok" : "bad"}">${f.ok ? "✓" : "✗"} ${esc(f.text)}</li>`).join("")}</ul>
+            <ul class="feedback">${a.feedback.map(f => `<li class="${f.ok ? "ok" : "bad"}"><span aria-hidden="true">${f.ok ? "✓" : "✗"}</span><span>${esc(f.text)}</span></li>`).join("")}</ul>
             <div class="compare">
               <div><strong>Customer wanted</strong>${a.expected.map(i => `<div>${esc(i)}</div>`).join("")}</div>
               <div><strong>Trainee rang</strong>${a.rung.map(i => `<div>${esc(i)}</div>`).join("") || "<div>(nothing)</div>"}</div>
             </div>`}
         </section>
-        <section class="panel">
-          <h2>Replay: every tap, in order</h2>
-          <ul class="timeline">${shown.map(e => {
+        <section class="card rise" style="--i:1">
+          <div class="card-head">
+            <div><h2>Replay: every tap, in order</h2><p class="sub">Press Play to watch it back at real speed (long pauses shortened).</p></div>
+            ${shown.length ? `<button class="btn" id="play" type="button">▶ Play</button>` : ""}
+          </div>
+          <ul class="timeline" id="timeline">${shown.map(e => {
             const [cls, text] = describe(e);
-            return `<li><span class="t">${((e.t - t0) / 1000).toFixed(1)}s</span><span class="${cls}">${esc(text)}</span></li>`;
+            return `<li class="${cls ? "b-" + cls : ""}"><span class="t">${((e.t - t0) / 1000).toFixed(1)}s</span><span class="bullet" aria-hidden="true"></span><span class="${cls}">${esc(text)}</span></li>`;
           }).join("")}</ul>
         </section>`;
 
       document.getElementById("back").onclick = () => showTrainee(a.trainee.id);
+      const play = document.getElementById("play");
+      if (play) play.onclick = () => playReplay(shown, play);
       window.scrollTo(0, 0);
+    }
+
+    // Steps through the timeline, highlighting each tap as it happened.
+    function playReplay(events, button) {
+      const list = document.getElementById("timeline");
+      const items = [...list.children];
+      if (PLAYER) { stopPlayer(); list.classList.remove("playing"); items.forEach(li => li.classList.remove("seen", "now")); button.textContent = "▶ Play"; return; }
+      list.classList.add("playing");
+      items.forEach(li => li.classList.remove("seen", "now"));
+      button.textContent = "■ Stop";
+      let i = 0;
+      const stepTo = () => {
+        items.forEach(li => li.classList.remove("now"));
+        if (i >= items.length) { PLAYER = null; button.textContent = "↻ Play again"; list.classList.remove("playing"); return; }
+        items[i].classList.add("seen", "now");
+        items[i].scrollIntoView({ block: "nearest", behavior: "smooth" });
+        const gap = i + 1 < events.length ? events[i + 1].t - events[i].t : 0;
+        i++;
+        PLAYER = setTimeout(stepTo, Math.min(1500, Math.max(250, gap)));
+      };
+      stepTo();
     }
 
     // ---- Data tools ----------------------------------------------------------------
