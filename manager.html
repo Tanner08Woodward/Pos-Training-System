@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manager Dashboard</title>
+  <link rel="stylesheet" href="hub.css" />
+  <style>
+    /* Dashboard look. One blue for amounts; status colors always come
+       with an icon + word so color is never the only signal. */
+    .dash {
+      --ink: #1f1f1f;
+      --ink-2: #52514e;
+      --ink-3: #8a8985;
+      --bar: #2a78d6;
+      --track: #e6eefb;
+      --good: #0ca30c;
+      --warn-bg: #fff4d6;
+      --bad: #d03b3b;
+      --good-bg: #e3f6e3;
+      --bad-bg: #fbe5e5;
+      color: var(--ink);
+    }
+    .dash h2 { font-size: 1.1rem; margin: 0 0 4px; }
+    .dash .sub { color: var(--ink-2); margin: 0 0 14px; font-size: 0.92rem; }
+
+    /* KPI tiles */
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+    .kpi { background: #fff; border-radius: 10px; padding: 14px 16px; }
+    .kpi .v { font-size: 2.2rem; font-weight: bold; line-height: 1.1; }
+    .kpi .v small { font-size: 1rem; color: var(--ink-3); font-weight: normal; }
+    .kpi .l { color: var(--ink-2); font-size: 0.88rem; margin-top: 2px; }
+
+    /* Status pill: icon + word */
+    .status { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 12px; font-weight: bold; font-size: 0.82rem; white-space: nowrap; }
+    .status.ready { background: var(--good-bg); color: #0a7a0a; }
+    .status.training { background: #eef2fb; color: #2852a8; }
+    .status.help { background: var(--bad-bg); color: #a32727; }
+    .status.new { background: #eee; color: var(--ink-2); }
+
+    /* Trainee rows */
+    .people { list-style: none; margin: 0; padding: 0; }
+    .person {
+      display: grid;
+      grid-template-columns: minmax(130px, 1.2fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(140px, 1.4fr) 16px;
+      gap: 14px; align-items: center;
+      padding: 12px 8px; border-bottom: 1px solid #eee; cursor: pointer; border-radius: 6px;
+    }
+    .person:hover { background: #f5f8fe; }
+    .person .name { font-weight: bold; font-size: 1.05rem; margin-bottom: 3px; }
+    .person .when { color: var(--ink-3); font-size: 0.8rem; margin-top: 3px; }
+    .person .issue { font-size: 0.88rem; color: var(--ink-2); }
+    .person .go { color: var(--ink-3); font-size: 1.3rem; }
+    .colhead { font-size: 0.72rem; text-transform: uppercase; color: var(--ink-3); font-weight: bold; }
+    .people-head { cursor: default; padding-top: 0; padding-bottom: 6px; }
+    .people-head:hover { background: none; }
+    @media (max-width: 720px) {
+      .person { grid-template-columns: 1fr 1fr; }
+      .person .go, .people-head { display: none; }
+    }
+
+    /* Meter: label + value above a bar */
+    .meter .top { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--ink-2); margin-bottom: 3px; }
+    .meter .top b { color: var(--ink); }
+    .meter .track { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; }
+    .meter .fill { height: 100%; background: var(--bar); border-radius: 4px; }
+    .meter + .meter { margin-top: 8px; }
+
+    /* Horizontal bars (problem areas) */
+    .hbars { list-style: none; margin: 0; padding: 0; }
+    .hbars li { display: grid; grid-template-columns: minmax(150px, 1.2fr) 2fr 70px; gap: 10px; align-items: center; padding: 6px 0; }
+    .hbars .lbl { font-size: 0.92rem; }
+    .hbars .fill { display: block; height: 14px; background: var(--bar); border-radius: 0 4px 4px 0; min-width: 4px; }
+    .hbars .val { text-align: right; font-weight: bold; font-size: 0.9rem; }
+    .hbars .who { grid-column: 1 / -1; margin-top: -4px; color: var(--ink-3); font-size: 0.8rem; }
+
+    /* Attention list */
+    .attention { list-style: none; margin: 0; padding: 0; }
+    .attention li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #eee; cursor: pointer; }
+    .attention li:last-child { border-bottom: none; }
+    .attention .icon { font-size: 1.1rem; line-height: 1.3; }
+    .attention .txt { font-size: 0.95rem; line-height: 1.4; }
+
+    /* Checklists in the trainee view */
+    .checks { list-style: none; margin: 0; padding: 0; }
+    .checks li { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+    .checks .mark { font-weight: bold; text-align: center; }
+    .checks .mark.ok { color: var(--good); }
+    .checks .mark.no { color: var(--bad); }
+    .checks .mark.none { color: var(--ink-3); }
+    .checks .right { font-size: 0.88rem; color: var(--ink-2); text-align: right; white-space: nowrap; }
+    .stars { color: #e0a000; letter-spacing: 1px; }
+    .stars span { color: #ddd; }
+    .two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+
+    /* Score trend chart */
+    .trend { width: 100%; height: auto; display: block; }
+    .trend .grid { stroke: #ececec; stroke-width: 1; }
+    .trend .passline { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 5 4; }
+    .trend .axis { fill: var(--ink-3); font-size: 11px; }
+    .trend .line { fill: none; stroke: var(--bar); stroke-width: 2; }
+    .trend .pt { fill: var(--bar); stroke: #fff; stroke-width: 2; }
+    .trend .pt.fail { fill: #fff; stroke: var(--bar); stroke-width: 2; }
+    .legend { display: flex; gap: 16px; font-size: 0.8rem; color: var(--ink-2); margin-top: 6px; flex-wrap: wrap; }
+    .legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--bar); vertical-align: -1px; margin-right: 4px; }
+    .legend .dot.hollow { background: #fff; border: 2px solid var(--bar); width: 8px; height: 8px; }
+
+    .history { list-style: none; margin: 0; padding: 0; }
+    .history li { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; padding: 9px 4px; border-bottom: 1px solid #f0f0f0; cursor: pointer; align-items: center; border-radius: 4px; }
+    .history li:hover { background: #f5f8fe; }
+    .history .d { color: var(--ink-3); font-size: 0.82rem; }
+    .history .what { font-size: 0.92rem; }
+    .history .what small { display: block; color: var(--ink-2); }
+
+    .banner { background: var(--warn-bg); border-left: 4px solid #e0a000; padding: 10px 12px; border-radius: 4px; margin-bottom: 14px; font-size: 0.92rem; }
+    .login { max-width: 380px; margin: 40px auto; }
+    .login input { width: 100%; padding: 12px; font-size: 1rem; border: 2px solid #bbb; border-radius: 5px; margin: 8px 0; }
+    .err { color: var(--bad); font-weight: bold; }
+    .empty { color: var(--ink-2); padding: 10px 0; }
+  </style>
+</head>
+<body>
+  <header class="hub-top">
+    <h1>MANAGER</h1>
+    <a href="index.html">Training Lab</a>
+  </header>
+
+  <main class="hub-main dash" id="app"></main>
+
+  <script src="config.js"></script>
+  <script src="engine/storage.js"></script>
+  <script src="engine/scoring.js"></script>
+  <script src="scenarios/handels.js"></script>
+  <script src="lessons/handels.js"></script>
+  <script>
+    // Manager dashboard. Three views: team overview -> one trainee -> one
+    // attempt (with a tap-by-tap replay). Data: the shared database (needs
+    // the manager code), plus anything on this device not sent yet.
+
+    const app = document.getElementById("app");
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const when = iso => new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    const day = iso => new Date(iso).toLocaleDateString([], { month: "short", day: "numeric" });
+    const pct = (n, d) => d ? Math.round((100 * n) / d) : 0;
+    const CODE_KEY = "ptl.managerCode";
+
+    // Plain-language names for each mistake the scoring can find.
+    const PROBLEMS = {
+      wrong_size: "Rings the wrong size",
+      wrong_type: "Rings the wrong cone/cup type",
+      missed_addon: "Misses add-ons (dipped, toppings)",
+      missing_item: "Leaves items off the order",
+      extra_item: "Rings items that weren't ordered",
+      no_payment: "Finishes sales without payment",
+      wrong_payment_method: "Uses the wrong payment type",
+      wrong_tender_amount: "Enters the wrong cash amount",
+      extra_deletes: "Deletes more than needed",
+      slow: "Slower than the goal time",
+      missed_change: "Misses when the customer changes their mind",
+    };
+    const problem = code => PROBLEMS[code] || code;
+
+    // Which lesson helps with which problem.
+    const PRACTICE = {
+      wrong_size: "sizes", wrong_type: "sizes", missed_addon: "dipped", missing_item: "register-tour",
+      extra_item: "fixing-mistakes", extra_deletes: "fixing-mistakes", no_payment: "payment",
+      wrong_payment_method: "payment", wrong_tender_amount: "payment", missed_change: "fixing-mistakes",
+    };
+
+    let ALL = [];          // every attempt (challenges + lessons)
+    let SOURCE = "device"; // "database" or "device"
+
+    function getCode() {
+      try { return sessionStorage.getItem(CODE_KEY); } catch (e) { return null; }
+    }
+    function setCode(code) {
+      try { code ? sessionStorage.setItem(CODE_KEY, code) : sessionStorage.removeItem(CODE_KEY); } catch (e) {}
+    }
+
+    // ---- Loading data --------------------------------------------------------
+    function mergeWithLocal(remote) {
+      const ids = new Set(remote.map(a => a.id));
+      return remote.concat(Storage.listAttempts().filter(a => !ids.has(a.id)));
+    }
+
+    async function load() {
+      if (!Storage.remoteEnabled) {
+        ALL = Storage.listAttempts();
+        SOURCE = "device";
+        return showOverview();
+      }
+      const code = getCode();
+      if (!code) return showLogin();
+      app.innerHTML = `<p class="empty">Loading results…</p>`;
+      try {
+        await Storage.syncPending();
+        ALL = mergeWithLocal(await Storage.fetchAllAttempts(code));
+        SOURCE = "database";
+        showOverview();
+      } catch (err) {
+        if (/wrong code/i.test(err.message)) {
+          setCode(null);
+          return showLogin("That code didn't work.");
+        }
+        ALL = Storage.listAttempts();
+        SOURCE = "device";
+        const why = err.status === 404
+          ? "The shared database isn't set up yet: run supabase/schema.sql in the Supabase SQL Editor."
+          : `Couldn't reach the shared database (${esc(err.message)}).`;
+        showOverview(`${why} Showing results saved on this device only.`);
+      }
+    }
+
+    function showLogin(error) {
+      app.innerHTML = `
+        <section class="panel login">
+          <h2>Manager sign-in</h2>
+          <p class="sub">Enter the manager code to see every trainee's results.</p>
+          ${error ? `<p class="err">${esc(error)}</p>` : ""}
+          <form id="login">
+            <input id="code" type="password" autocomplete="current-password" placeholder="Manager code" />
+            <button class="btn green" type="submit">Show results</button>
+          </form>
+        </section>`;
+      document.getElementById("login").onsubmit = e => {
+        e.preventDefault();
+        const code = document.getElementById("code").value.trim();
+        if (!code) return;
+        setCode(code);
+        load();
+      };
+      document.getElementById("code").focus();
+    }
+
+    // ---- Working out each trainee's status -----------------------------------
+    function trainees() {
+      const map = new Map();
+      ALL.forEach(a => {
+        if (!a.trainee) return;
+        if (!map.has(a.trainee.id)) map.set(a.trainee.id, { trainee: a.trainee, attempts: [] });
+        map.get(a.trainee.id).attempts.push(a);
+      });
+      return [...map.values()].map(summarize);
+    }
+
+    // Counts how many attempts had each mistake (once per attempt).
+    function countProblems(list, skipSlow) {
+      const counts = {};
+      list.forEach(a => new Set((a.mistakes || []).map(m => m.code)).forEach(c => {
+        if (skipSlow && c === "slow") return;
+        counts[c] = (counts[c] || 0) + 1;
+      }));
+      return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    }
+
+    function summarize(g) {
+      const all = g.attempts.slice().sort((x, y) => x.finishedAt.localeCompare(y.finishedAt));
+      const challenges = all.filter(a => a.mode !== "lesson");
+      const lessons = all.filter(a => a.mode === "lesson");
+      const lessonsDone = Lessons.list.filter(l => lessons.some(a => a.scenarioId === l.id));
+      const passed = Scenarios.list.filter(s => challenges.some(a => a.scenarioId === s.id && a.passed));
+      // "slow" isn't a skill problem. "problems" = the last 5 challenges (what's
+      // going wrong lately); "allProblems" = everything, for the detail page.
+      const recent = challenges.slice(-5);
+      const problems = countProblems(recent, true);
+      const allProblems = countProblems(challenges, true);
+      const recentFails = recent.filter(a => !a.passed).length;
+      const repeated = problems.length && problems[0][1] >= 3;
+
+      let status;
+      if (!all.length) status = "new";
+      else if (passed.length === Scenarios.list.length && lessonsDone.length === Lessons.list.length) status = "ready";
+      else if (recent.length >= 3 && (recentFails >= 3 || repeated)) status = "help";
+      else status = "training";
+
+      return {
+        ...g, all, challenges, lessons, lessonsDone, passed, problems, allProblems, recent, status,
+        last: all.length ? all[all.length - 1].finishedAt : null,
+      };
+    }
+
+    const STATUS = {
+      ready: ["✓", "Ready for register"],
+      training: ["●", "In training"],
+      help: ["!", "Needs help"],
+      new: ["○", "Not started"],
+    };
+    const pill = (cls, icon, word) => `<span class="status ${cls}"><span aria-hidden="true">${icon}</span>${word}</span>`;
+    const statusPill = s => pill(s, STATUS[s][0], STATUS[s][1]);
+
+    function meter(label, n, d) {
+      return `<div class="meter" title="${esc(label)}: ${n} of ${d}">
+        <div class="top"><span>${esc(label)}</span><b>${n}/${d}</b></div>
+        <div class="track"><div class="fill" style="width:${pct(n, d)}%"></div></div></div>`;
+    }
+
+    function suggestion(p) {
+      const lesson = p.problems.length && Lessons.get(PRACTICE[p.problems[0][0]]);
+      return lesson ? `Have them redo the <b>${esc(lesson.title)}</b> lesson.` : "";
+    }
+
+    // ---- View 1: the team ------------------------------------------------------
+    function showOverview(warning) {
+      const order = { help: 0, training: 1, new: 2, ready: 3 };
+      const people = trainees().sort((a, b) => order[a.status] - order[b.status] || (b.last || "").localeCompare(a.last || ""));
+      const challenges = ALL.filter(a => a.mode !== "lesson");
+      const ready = people.filter(p => p.status === "ready").length;
+      const help = people.filter(p => p.status === "help");
+
+      const teamProblems = countProblems(challenges, false).slice(0, 6);
+      const whoHas = {};
+      challenges.forEach(a => (a.mistakes || []).forEach(m => (whoHas[m.code] = whoHas[m.code] || new Set()).add(a.trainee.name)));
+
+      app.innerHTML = `
+        ${warning ? `<div class="banner">${warning}</div>` : ""}
+        ${SOURCE === "device" && !warning ? `<div class="banner">Showing results saved on this device.</div>` : ""}
+
+        <section class="kpis" style="margin-bottom:16px">
+          <div class="kpi"><div class="v">${people.length}</div><div class="l">Trainees</div></div>
+          <div class="kpi"><div class="v">${ready}<small> of ${people.length}</small></div><div class="l">Ready for the register</div></div>
+          <div class="kpi"><div class="v">${help.length}</div><div class="l">Need help</div></div>
+          <div class="kpi"><div class="v">${pct(challenges.filter(a => a.passed).length, challenges.length)}<small>%</small></div><div class="l">Challenges passed (${challenges.length} tries)</div></div>
+        </section>
+
+        ${help.length ? `
+        <section class="panel">
+          <h2>Needs your attention</h2>
+          <p class="sub">Trainees failing repeatedly or making the same mistake 3+ times.</p>
+          <ul class="attention">${help.map(p => `
+            <li data-id="${esc(p.trainee.id)}">
+              <span class="icon" aria-hidden="true">⚠️</span>
+              <span class="txt"><b>${esc(p.trainee.name)}</b>: ${p.problems.length
+                ? `${esc(problem(p.problems[0][0]).toLowerCase())} (${p.problems[0][1]} of their last ${p.recent.length} challenges).`
+                : `failed ${p.challenges.slice(-5).filter(a => !a.passed).length} of their last 5 challenges.`}
+                ${suggestion(p)}</span>
+            </li>`).join("")}</ul>
+        </section>` : ""}
+
+        <section class="panel">
+          <h2>Trainees</h2>
+          <p class="sub">Ready = finished every Training lesson and passed every Challenge. Tap a trainee for details.</p>
+          ${people.length ? `
+          <div class="person people-head">
+            <span class="colhead">Trainee</span><span class="colhead">Training</span><span class="colhead">Challenges</span><span class="colhead">Problem lately</span><span></span>
+          </div>
+          <ul class="people">${people.map(p => `
+            <li class="person" data-id="${esc(p.trainee.id)}">
+              <div><div class="name">${esc(p.trainee.name)}</div>${statusPill(p.status)}<div class="when">${p.last ? "Last practiced " + when(p.last) : ""}</div></div>
+              ${meter("Lessons done", p.lessonsDone.length, Lessons.list.length)}
+              ${meter("Challenges passed", p.passed.length, Scenarios.list.length)}
+              <div class="issue">${p.problems.length ? esc(problem(p.problems[0][0])) : p.challenges.length ? "None lately" : "No challenges yet"}</div>
+              <span class="go" aria-hidden="true">›</span>
+            </li>`).join("")}</ul>` : `<p class="empty">No one has trained yet. Trainees enter their name in the Training Lab, then do lessons and challenges.</p>`}
+        </section>
+
+        <section class="panel">
+          <h2>What the team gets wrong most</h2>
+          <p class="sub">Share of all challenge tries with each mistake. Use this to decide what to coach on shift.</p>
+          ${teamProblems.length ? `<ul class="hbars">${teamProblems.map(([code, n]) => `
+            <li title="${esc(problem(code))}: ${n} of ${challenges.length} tries">
+              <span class="lbl">${esc(problem(code))}</span>
+              <span><span class="fill" style="width:${Math.max(2, (100 * n) / teamProblems[0][1])}%"></span></span>
+              <span class="val">${pct(n, challenges.length)}%</span>
+              <span class="who">${[...whoHas[code]].map(esc).join(", ")}</span>
+            </li>`).join("")}</ul>` : `<p class="empty">No mistakes recorded yet.</p>`}
+        </section>
+
+        <section class="panel">
+          <h2>Data</h2>
+          <p class="sub">${SOURCE === "database" ? "Results from every device (shared database)." : "Results saved on this device."}</p>
+          <button class="btn gray small" id="export">Download results (JSON)</button>
+          <button class="btn red small" id="clear">Delete all results</button>
+          ${SOURCE === "database" ? `<button class="btn gray small" id="signout">Sign out</button>` : ""}
+        </section>`;
+
+      app.querySelectorAll("[data-id]").forEach(el => el.onclick = () => showTrainee(el.dataset.id));
+      document.getElementById("export").onclick = exportJSON;
+      document.getElementById("clear").onclick = clearAll;
+      const so = document.getElementById("signout");
+      if (so) so.onclick = () => { setCode(null); load(); };
+      window.scrollTo(0, 0);
+    }
+
+    // ---- View 2: one trainee -----------------------------------------------------
+    function summarySentence(p) {
+      if (!p.all.length) return "Hasn't started yet.";
+      const parts = [`Finished ${p.lessonsDone.length} of ${Lessons.list.length} lessons and passed ${p.passed.length} of ${Scenarios.list.length} challenges.`];
+      if (p.problems.length) parts.push(`Problem lately: <b>${esc(problem(p.problems[0][0]).toLowerCase())}</b>. ${suggestion(p)}`);
+      if (p.status === "ready") parts.push("Ready to try the live register with a trainer nearby.");
+      return parts.join(" ");
+    }
+
+    function showTrainee(id) {
+      const p = trainees().find(x => x.trainee.id === id);
+      if (!p) return showOverview();
+      const recent = p.all.slice().reverse();
+
+      app.innerHTML = `
+        <a class="back-link" id="back">← All trainees</a>
+        <section class="panel">
+          <h2 style="font-size:1.5rem">${esc(p.trainee.name)} ${statusPill(p.status)}</h2>
+          <p class="sub" style="font-size:1rem">${summarySentence(p)}</p>
+          <div class="kpis">
+            <div class="kpi" style="background:#f5f8fe">${meter("Training lessons done", p.lessonsDone.length, Lessons.list.length)}</div>
+            <div class="kpi" style="background:#f5f8fe">${meter("Challenges passed", p.passed.length, Scenarios.list.length)}</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Challenge scores over time</h2>
+          <p class="sub">Each dot is one try. Pass = right order + right payment + 80 or more (dashed line).</p>
+          ${trendChart(p.challenges)}
+        </section>
+
+        <div class="two-col">
+          <section class="panel">
+            <h2>Training lessons</h2>
+            <ul class="checks">${Lessons.list.map(l => {
+              const tries = p.lessons.filter(a => a.scenarioId === l.id);
+              const best = tries.reduce((b, a) => Math.max(b, a.stars || 0), 0);
+              return `<li><span class="mark ${tries.length ? "ok" : "none"}">${tries.length ? "✓" : "–"}</span>
+                <span>${esc(l.title)}</span>
+                <span class="right">${tries.length ? `<span class="stars" title="${best} of 3 stars">${"★".repeat(best)}<span>${"★".repeat(3 - best)}</span></span>` : "Not done"}</span></li>`;
+            }).join("")}</ul>
+          </section>
+          <section class="panel">
+            <h2>Challenges</h2>
+            <ul class="checks">${Scenarios.list.map(s => {
+              const tries = p.challenges.filter(a => a.scenarioId === s.id);
+              const ok = tries.some(a => a.passed);
+              const best = tries.length ? Math.max(...tries.map(a => a.score)) : null;
+              return `<li><span class="mark ${ok ? "ok" : tries.length ? "no" : "none"}">${ok ? "✓" : tries.length ? "✗" : "–"}</span>
+                <span>${esc(s.title)}</span>
+                <span class="right">${tries.length ? `best ${best} · ${tries.length} tr${tries.length > 1 ? "ies" : "y"}` : "Not tried"}</span></li>`;
+            }).join("")}</ul>
+          </section>
+        </div>
+
+        <section class="panel">
+          <h2>Problem areas</h2>
+          <p class="sub">How many of ${esc(p.trainee.name)}'s challenge tries (all time) had each mistake.</p>
+          ${p.allProblems.length ? `<ul class="hbars">${p.allProblems.map(([code, n]) => `
+            <li title="${esc(problem(code))}: ${n} of ${p.challenges.length}">
+              <span class="lbl">${esc(problem(code))}</span>
+              <span><span class="fill" style="width:${Math.max(2, pct(n, p.challenges.length))}%"></span></span>
+              <span class="val">${n} of ${p.challenges.length}</span>
+            </li>`).join("")}</ul>` : `<p class="empty">${p.challenges.length ? "No mistakes." : "No challenges yet."}</p>`}
+        </section>
+
+        <section class="panel">
+          <h2>Everything they've done</h2>
+          <p class="sub">Tap any row to replay it tap by tap.</p>
+          <ul class="history">${recent.map(a => `
+            <li data-attempt="${esc(a.id)}">
+              <span class="d">${when(a.finishedAt)}</span>
+              <span class="what">${a.mode === "lesson" ? "Lesson: " : ""}${esc(a.scenarioTitle)}
+                <small>${a.mode === "lesson"
+                  ? `${a.hintsNeeded ? a.hintsNeeded + " hint" + (a.hintsNeeded > 1 ? "s" : "") : "no hints"} · ${a.wrongTaps || 0} wrong taps · ${Math.round(a.seconds)}s`
+                  : (a.mistakes && a.mistakes.length ? a.mistakes.map(m => esc(problem(m.code))).join(" · ") : "No mistakes") + ` · ${a.seconds.toFixed(1)}s`}</small></span>
+              ${a.mode === "lesson"
+                ? `<span class="stars">${"★".repeat(a.stars || 0)}<span>${"★".repeat(3 - (a.stars || 0))}</span></span>`
+                : pill(a.passed ? "ready" : "help", a.passed ? "✓" : "✗", a.score)}
+            </li>`).join("")}</ul>
+        </section>`;
+
+      document.getElementById("back").onclick = () => showOverview();
+      app.querySelectorAll("[data-attempt]").forEach(li => li.onclick = () => showAttempt(li.dataset.attempt));
+      window.scrollTo(0, 0);
+    }
+
+    // Line chart of challenge scores, with the pass line at 80.
+    function trendChart(list) {
+      if (!list.length) return `<p class="empty">No challenges yet.</p>`;
+      const W = 640, H = 200, L = 34, R = 12, T = 12, B = 26;
+      const x = i => list.length === 1 ? (L + W - R) / 2 : L + (i * (W - L - R)) / (list.length - 1);
+      const y = v => T + ((100 - v) * (H - T - B)) / 100;
+      const pts = list.map((a, i) => [x(i), y(a.score)]);
+      const grid = [0, 50, 100].map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join("");
+      const step = Math.max(1, Math.ceil(list.length / 6));
+      const xlabels = list.map((a, i) => i % step === 0 || i === list.length - 1
+        ? `<text class="axis" x="${x(i)}" y="${H - 6}" text-anchor="${list.length > 1 && i === list.length - 1 ? "end" : i === 0 && list.length > 1 ? "start" : "middle"}">${esc(day(a.finishedAt))}</text>` : "").join("");
+      return `
+        <svg class="trend" viewBox="0 0 ${W} ${H}" role="img" aria-label="Challenge scores over time">
+          ${grid}
+          <line class="passline" x1="${L}" x2="${W - R}" y1="${y(80)}" y2="${y(80)}"/>
+          <text class="axis" x="${W - R}" y="${y(80) - 5}" text-anchor="end">Pass 80</text>
+          ${list.length > 1 ? `<polyline class="line" points="${pts.map(p => p.join(",")).join(" ")}"/>` : ""}
+          ${list.map((a, i) => `<circle class="pt ${a.passed ? "" : "fail"}" cx="${pts[i][0]}" cy="${pts[i][1]}" r="6">
+            <title>${esc(day(a.finishedAt))} · ${esc(a.scenarioTitle)} · ${a.score} (${a.passed ? "passed" : "not yet"})</title></circle>`).join("")}
+          ${xlabels}
+        </svg>
+        <div class="legend"><span><span class="dot"></span>Passed</span><span><span class="dot hollow"></span>Not passed</span><span>Hover or tap a dot for details</span></div>`;
+    }
+
+    // ---- View 3: one attempt, replayed -------------------------------------------
+    const CATEGORY_NAMES = {
+      main: "Main Menu", cones: "Cones and Dishes", pints: "Pints and Quarts", sundaes: "Sundaes",
+      shakes: "Shakes and Drinks", hurricanes: "Hurricanes", novelties: "Novelties", extras: "Extras",
+      giftcards: "Gift Cards and Merch.", catering: "Catering and Misc.",
+    };
+    const SCREENS = { "manager-screen": "Manager", payment: "Payment", discount: "Discount" };
+
+    function describe(e) {
+      const d = e.data || {};
+      switch (e.type) {
+        case "challenge_started": case "lesson_started": return ["", "Tapped Start"];
+        case "customer_said": return ["say", `Customer: “${d.text}”`];
+        case "category_opened": return ["", `Opened ${CATEGORY_NAMES[d.category] || d.category}`];
+        case "item_added": return ["", `Rang ${d.item}`];
+        case "line_selected": return ["", `${d.selected ? "Highlighted" : "Un-highlighted"} line ${d.line} (${d.item})`];
+        case "item_removed": return ["bad", `Deleted ${d.item}${d.method === "delete_last" ? " (last line)" : ""}`];
+        case "order_cleared": return ["bad", `Delete All (${d.itemsRemoved.length} items)`];
+        case "delete_on_empty_order": return ["bad", "Pressed Delete on an empty order"];
+        case "empty_slot_tapped": return ["bad", "Tapped an empty spot"];
+        case "screen_opened": return ["", `Opened ${SCREENS[d.screen] || d.screen}`];
+        case "screen_closed": return ["", `Closed ${SCREENS[d.screen] || d.screen}`];
+        case "discount_applied": return ["", `Discount ${d.kind === "percent" ? d.percent + "%" : "$" + d.amount}`];
+        case "tender_applied": return ["pay", d.method === "pinpad" ? "Pay with Pinpad" : `Entered $${Number(d.amount).toFixed(2)} cash (${d.method.replace("_button", "")})`];
+        case "custom_amount_invalid": return ["bad", "Invalid custom amount"];
+        case "transaction_completed": return ["pay", `Sale completed: total $${d.total.toFixed(2)}, paid $${d.paid.toFixed(2)}, change $${d.change.toFixed(2)}`];
+        case "coach_hint": return ["say", d.level >= 2 ? "Coach showed a tip" : "Coach made the button glow"];
+        case "coach_wrong": return ["bad", "Wrong tap"];
+        case "coach_restart": return ["bad", "Lesson restarted from checkpoint"];
+        case "coach_step_done": return ["", `✓ Step ${d.step} done`];
+        case "lesson_completed": return ["pay", "Lesson complete"];
+        case "order_started": return ["", "New order"];
+        default: return ["", e.type];
+      }
+    }
+
+    function showAttempt(id) {
+      const a = ALL.find(x => x.id === id);
+      if (!a) return showOverview();
+      const t0 = a.events.length ? a.events[0].t : 0;
+      const isLesson = a.mode === "lesson";
+      const endIdx = a.events.findIndex(e => e.type === (isLesson ? "lesson_completed" : "transaction_completed"));
+      const shown = endIdx === -1 ? a.events : a.events.slice(0, endIdx + 1);
+
+      app.innerHTML = `
+        <a class="back-link" id="back">← ${esc(a.trainee.name)}</a>
+        <section class="panel">
+          <h2 style="font-size:1.3rem">${isLesson ? "Lesson: " : ""}${esc(a.scenarioTitle)}
+            ${isLesson ? `<span class="stars">${"★".repeat(a.stars || 0)}<span>${"★".repeat(3 - (a.stars || 0))}</span></span>`
+                       : pill(a.passed ? "ready" : "help", a.passed ? "✓" : "✗", a.passed ? "Passed" : "Not yet")}</h2>
+          <p class="sub">${esc(a.trainee.name)} · ${when(a.finishedAt)} · ${a.seconds.toFixed(1)}s</p>
+          ${isLesson ? `
+            <ul class="checks">
+              <li><span class="mark ${a.hintsNeeded ? "no" : "ok"}">${a.hintsNeeded ? "!" : "✓"}</span><span>Steps where the coach had to help</span><span class="right">${a.hintsNeeded || 0}</span></li>
+              <li><span class="mark ${a.wrongTaps ? "no" : "ok"}">${a.wrongTaps ? "!" : "✓"}</span><span>Wrong taps</span><span class="right">${a.wrongTaps || 0}</span></li>
+            </ul>` : `
+            <div class="kpis" style="margin-bottom:12px">
+              <div class="kpi" style="background:#f5f8fe"><div class="v">${a.score}<small>/100</small></div><div class="l">Score</div></div>
+              <div class="kpi" style="background:#f5f8fe">${meter("Order", a.points.accuracy, 50)}${meter("Payment", a.points.payment, 20)}</div>
+              <div class="kpi" style="background:#f5f8fe">${meter("Corrections", a.points.corrections, 15)}${meter("Speed", a.points.speed, 15)}</div>
+            </div>
+            <ul class="feedback">${a.feedback.map(f => `<li class="${f.ok ? "ok" : "bad"}">${f.ok ? "✓" : "✗"} ${esc(f.text)}</li>`).join("")}</ul>
+            <div class="compare">
+              <div><strong>Customer wanted</strong>${a.expected.map(i => `<div>${esc(i)}</div>`).join("")}</div>
+              <div><strong>Trainee rang</strong>${a.rung.map(i => `<div>${esc(i)}</div>`).join("") || "<div>(nothing)</div>"}</div>
+            </div>`}
+        </section>
+        <section class="panel">
+          <h2>Replay: every tap, in order</h2>
+          <ul class="timeline">${shown.map(e => {
+            const [cls, text] = describe(e);
+            return `<li><span class="t">${((e.t - t0) / 1000).toFixed(1)}s</span><span class="${cls}">${esc(text)}</span></li>`;
+          }).join("")}</ul>
+        </section>`;
+
+      document.getElementById("back").onclick = () => showTrainee(a.trainee.id);
+      window.scrollTo(0, 0);
+    }
+
+    // ---- Data tools ----------------------------------------------------------------
+    function exportJSON() {
+      const blob = new Blob([JSON.stringify(ALL, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `training-results-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+
+    async function clearAll() {
+      const where = SOURCE === "database" ? "from EVERY device (shared database)" : "on this device";
+      if (!confirm(`Delete ALL training results ${where}? This can't be undone.`)) return;
+      try {
+        if (SOURCE === "database") await Storage.clearAllAttempts(getCode());
+        Storage.clearAttempts();
+        load();
+      } catch (err) {
+        alert("Couldn't delete: " + err.message);
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

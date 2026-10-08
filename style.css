@@ -64,6 +64,15 @@ body.no-scroll {
 
 #order-list li {
   margin-bottom: 4px;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+/* Tapped (highlighted) order line, ready for Delete Item */
+#order-list li.selected {
+  background: #f0c040;
+  color: #000;
 }
 
 /* Totals */
@@ -221,10 +230,6 @@ button.back {
 
 /* Responsive Tweaks */
 @media (max-width: 1024px) {
-  .menu-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
   .category-panel button {
     font-size: 0.85rem;
     padding: 10px;
@@ -261,27 +266,63 @@ button.back {
   box-sizing: border-box;
 }
 
-@media (max-width: 768px) {
-  html {
-    font-size: 12px;
-  }
+/* ---------------------------------------------------------------------------
+   Device fit: iPhone, iPad and computer all show the SAME 6-column layout as
+   the real register. Buttons shrink to fit the screen instead of moving.
+   The tallest category (Main Menu) has 7 rows, so row height = screen / 7.
+   --------------------------------------------------------------------------- */
+:root {
+  --topbar-h: 50px;
+  --grid-gap: 10px;
+}
 
-  .pos-container {
-    transform: scale(0.75);
-    transform-origin: top left;
-    width: 133.33%; /* 100 / 0.75 */
-    height: auto;
-    overflow-x: auto;
-  }
+.top-bar { height: var(--topbar-h); }
 
-  .top-bar {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-  }
+.pos-container {
+  height: calc(100vh - var(--topbar-h));
+  height: calc(100dvh - var(--topbar-h)); /* iPhone/iPad: ignore the browser toolbar */
+}
 
-  .category-panel {
-    overflow-y: auto;
-    flex-direction: column;
-    flex-wrap: nowrap;
+.menu-grid {
+  gap: var(--grid-gap);
+  grid-auto-rows: min(80px, calc((100vh - var(--topbar-h) - 20px - 6 * var(--grid-gap)) / 7));
+  grid-auto-rows: min(80px, calc((100dvh - var(--topbar-h) - 20px - 6 * var(--grid-gap)) / 7));
+}
+
+.menu-grid button {
+  font-size: clamp(0.55rem, 1.05vw, 0.85rem);
+  padding: 2px;
+  line-height: 1.15;
+}
+
+.category-panel button {
+  min-height: 0;
+  font-size: clamp(0.6rem, 1.1vw, 0.95rem);
+}
+
+/* Phones held sideways (short screens) */
+@media (max-height: 500px) {
+  :root {
+    --topbar-h: 34px;
+    --grid-gap: 4px;
   }
+  .top-bar { padding: 3px; }
+  .top-bar button { font-size: 0.7rem; }
+  .center-panel { padding: 4px; }
+  .menu-grid {
+    grid-auto-rows: calc((100vh - var(--topbar-h) - 8px - 6 * var(--grid-gap)) / 7);
+    grid-auto-rows: calc((100dvh - var(--topbar-h) - 8px - 6 * var(--grid-gap)) / 7);
+  }
+  .category-panel { padding: 4px; gap: 3px; }
+  .category-panel button { padding: 2px; }
+  .category-panel .pay { font-size: 0.85rem; }
+  .order-panel { padding: 6px; font-size: 0.75rem; }
+  .order-panel h2 { font-size: 1rem; margin-bottom: 4px; }
+}
+
+/* Tap targets: no double-tap zoom or text selection on touch screens */
+button, #order-list li {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }

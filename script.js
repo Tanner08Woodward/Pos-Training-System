@@ -6,6 +6,10 @@ let change = 0
 let discountAmount = 0;
 let totalPaid = 0;
 
+// Order lines the trainee tapped (highlighted), by position in the order.
+// Like the real register: tap one or more lines, then press Delete Item.
+let selectedLines = new Set();
+
 const TAX_RATE = 0.0825;
 
 // --- Training: action recording (Milestone 1) ---------------------------
@@ -122,8 +126,13 @@ const prices = {
   "Dipped Kids Cone": 4.75
 };
 
+// True while a paid sale is about to finish, so rapid taps on cash buttons
+// or the pinpad can't complete the same sale twice.
+let completionPending = false;
+
 function startNewOrder(reason = "new_order_button") {
   track("order_started", { reason });
+  completionPending = false;
   currentOrder = [];
   totalPaid = 0;
   discountAmount = 0;
@@ -198,11 +207,16 @@ function updateOrderDisplay() {
   const list = document.getElementById("order-list");
   list.innerHTML = "";
 
+  // A highlighted line only stays valid while it still exists.
+  selectedLines.forEach(i => { if (i >= currentOrder.length) selectedLines.delete(i); });
+
   let subtotal = 0;
-  currentOrder.forEach(item => {
+  currentOrder.forEach((item, index) => {
     const price = prices[item] || 3.0;
     const li = document.createElement("li");
     li.innerText = `${item} - $${price.toFixed(2)}`;
+    if (selectedLines.has(index)) li.classList.add("selected");
+    li.onclick = () => selectLine(index);
     list.appendChild(li);
     subtotal += price;
   });
@@ -227,7 +241,8 @@ function applyPayment(amount, method = "cash_button") {
   const change = totalPaid - currentTotal;
   document.getElementById("change").innerText = change > 0 ? change.toFixed(2) : "0.00";
 
-  if (totalPaid >= currentTotal) {
+  if (totalPaid >= currentTotal && !completionPending) {
+    completionPending = true;
     setTimeout(() => {
       alert(`Transaction complete! Change: $${change.toFixed(2)}`);
       completeTransaction("auto_after_payment");
@@ -254,6 +269,8 @@ function payCustom() {
 }
 
 function completeTransaction(trigger = "complete_button") {
+  // A paid sale is already finishing; don't finish it a second time.
+  if (trigger === "complete_button" && completionPending) return;
   track("transaction_completed", {
     trigger,
     items: currentOrder.slice(),
@@ -266,13 +283,30 @@ function completeTransaction(trigger = "complete_button") {
   startNewOrder("after_transaction");
 }
 
-function deleteLastItem() {
-  if (currentOrder.length > 0) {
-    track("item_removed", { item: currentOrder[currentOrder.length - 1], line: currentOrder.length, method: "delete_last" });
-  } else {
+// Tap an order line to highlight it; tap it again to un-highlight.
+// Several lines can be highlighted at once.
+function selectLine(index) {
+  const selected = !selectedLines.has(index);
+  if (selected) selectedLines.add(index); else selectedLines.delete(index);
+  track("line_selected", { item: currentOrder[index], line: index + 1, selected });
+  updateOrderDisplay();
+}
+
+// Delete Item: removes every highlighted line. With nothing highlighted,
+// it removes the last line (same as the real register).
+function deleteSelectedItem() {
+  if (currentOrder.length === 0) {
     track("delete_on_empty_order", {});
+    return;
   }
-  currentOrder.pop();
+  let lines = [...selectedLines].sort((a, b) => b - a);   // highest first, so positions don't shift
+  const method = lines.length ? "delete_selected" : "delete_last";
+  if (!lines.length) lines = [currentOrder.length - 1];
+  lines.forEach(index => {
+    track("item_removed", { item: currentOrder[index], line: index + 1, method });
+    currentOrder.splice(index, 1);
+  });
+  selectedLines.clear();
   updateOrderDisplay();
 }
 
@@ -306,6 +340,8 @@ function applyFlatDiscount() {
 }
 
 document.getElementById("pinpad-btn").addEventListener("click", () => {
+  if (completionPending) return;
+  completionPending = true;
   track("tender_applied", { method: "pinpad", amount: Math.round(currentTotal * 100) / 100, paidBefore: Math.round(totalPaid * 100) / 100 });
   // Optional: simulate delay for processing
   setTimeout(() => {
@@ -316,5 +352,22 @@ document.getElementById("pinpad-btn").addEventListener("click", () => {
 
 hideScreens();
 loadCategory("main", false);
-track("session_started", { register: "handels", version: "m1" });
+// Let the training engine read the register without changing it.
+function getOrder() {
+  return currentOrder.slice();
+}
+function getMenu() {
+  return menuItems;
+}
+function getCategory() {
+  return currentCategory;
+}
+
+// Logout returns to the Training Lab (the hub).
+function logout() {
+  track("logout", {});
+  window.location.href = "index.html";
+}
+
+track("session_started", { register: "handels", version: "m2" });
 

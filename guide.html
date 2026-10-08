@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register Study Guide</title>
+  <link rel="stylesheet" href="hub.css" />
+  <style>
+    .toc { display: flex; flex-wrap: wrap; gap: 6px; }
+    .toc a { background: #eef2fb; color: #2852a8; padding: 6px 10px; border-radius: 14px; font-weight: bold; font-size: 0.85rem; text-decoration: none; }
+    .guide h2 { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .guide h2 a { font-size: 0.85rem; }
+    .guide p, .guide li { line-height: 1.5; }
+    .rule { background: #fdf6e3; border-left: 5px solid #f0c040; padding: 10px 12px; border-radius: 4px; font-size: 1.05rem; margin: 10px 0; }
+    .rule strong { font-size: 1.15rem; }
+    .examples { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; margin: 10px 0; }
+    .ex { background: #f3f6fc; border-radius: 6px; padding: 10px; }
+    .ex .say { font-style: italic; }
+    .ex .ring { margin-top: 6px; font-weight: bold; }
+    .ex .ring span { display: inline-block; background: linear-gradient(to bottom, #2852a8, #123a7b); color: #fff; padding: 4px 8px; border-radius: 4px; margin: 2px 4px 2px 0; font-size: 0.85rem; }
+    .ex .ring span.brown { background: linear-gradient(to bottom, #a67c52, #5c4033); }
+    .tabs td:first-child { font-weight: bold; white-space: nowrap; }
+    .steps { counter-reset: s; list-style: none; padding: 0; }
+    .steps li { counter-increment: s; padding: 6px 0 6px 36px; position: relative; }
+    .steps li::before { content: counter(s); position: absolute; left: 0; top: 4px; width: 26px; height: 26px; border-radius: 50%; background: #2852a8; color: #fff; text-align: center; line-height: 26px; font-weight: bold; }
+    .flavors dt { font-weight: bold; margin-top: 8px; }
+    .flavors dd { margin: 0 0 0 0; color: #444; }
+  </style>
+</head>
+<body>
+  <header class="hub-top">
+    <h1>STUDY GUIDE</h1>
+    <a href="index.html">Training Lab</a>
+  </header>
+
+  <main class="hub-main guide">
+    <section class="panel">
+      <p style="margin-top:0">Everything you need to work the register. Read a section, then hit <strong>Practice</strong> to try it with the coach.</p>
+      <nav class="toc">
+        <a href="#layout">The register</a>
+        <a href="#sizes">Sizes</a>
+        <a href="#cones">Cones, cups & dipped</a>
+        <a href="#tabs">Where things are</a>
+        <a href="#fixing">Fixing mistakes</a>
+        <a href="#payment">Payment</a>
+        <a href="#discounts">Discounts</a>
+        <a href="#callouts">Calling out orders</a>
+        <a href="#flavors">Flavors guests ask about</a>
+      </nav>
+    </section>
+
+    <section class="panel" id="layout">
+      <h2>The register <a href="register.html?mode=lesson&lesson=register-tour">Practice →</a></h2>
+      <ul>
+        <li><strong>Left:</strong> the order. Every item you ring shows here with its price. Subtotal, tax and total are at the bottom.</li>
+        <li><strong>Middle:</strong> the buttons for the tab you're on.</li>
+        <li><strong>Right:</strong> the tabs (Main Menu, Cones and Dishes, Pints and Quarts...). <strong>PAY / CLOSE ORDER</strong> is the big green button at the bottom.</li>
+        <li><strong>Top:</strong> New Order, Discount, Manager (Delete Item / Delete All).</li>
+      </ul>
+      <div class="rule"><strong>Flavors are never rung.</strong> You ring the size and what it's served in. You call the flavor out to the scooper.</div>
+    </section>
+
+    <section class="panel" id="sizes">
+      <h2>Sizes: count the flavors <a href="register.html?mode=lesson&lesson=sizes">Practice →</a></h2>
+      <div class="rule"><strong>1 flavor = Small. 2 flavors = Medium.</strong><br>Unless the guest says a size, then ring what they said. Large also holds up to 2 flavors (bigger scoops).</div>
+      <div class="examples">
+        <div class="ex"><div class="say">"Can I get a cake cone of strawberry?"</div><div class="ring">Ring: <span>Small Cone</span></div></div>
+        <div class="ex"><div class="say">"A cup with vanilla and chocolate."</div><div class="ring">Ring: <span>Medium Cup</span></div></div>
+        <div class="ex"><div class="say">"A waffle of coffee and graham."</div><div class="ring">Ring: <span>Medium Waffle Cone</span></div></div>
+        <div class="ex"><div class="say">"A LARGE waffle bowl of mint."</div><div class="ring">Ring: <span>Large Waffle Bowl</span></div></div>
+      </div>
+    </section>
+
+    <section class="panel" id="cones">
+      <h2>Cones, cups & dipped <a href="register.html?mode=lesson&lesson=dipped">Practice →</a></h2>
+      <ul>
+        <li><strong>Sugar cone or cake cone</strong> → the plain <em>Cone</em> buttons (Small / Medium / Large Cone).</li>
+        <li><strong>Cup (dish)</strong> → the <em>Cup</em> buttons.</li>
+        <li><strong>Waffle cone / waffle bowl</strong> → their own buttons.</li>
+        <li><strong>Dipped waffle cone</strong> → TWO lines: the waffle cone, then the brown <em>Dipped</em> button (plain, sprinkles, or peanuts).</li>
+        <li><strong>Kid's cones</strong> → on the <em>Cones and Dishes</em> tab.</li>
+      </ul>
+      <div class="examples">
+        <div class="ex"><div class="say">"Medium waffle cone dipped with sprinkles."</div><div class="ring">Ring: <span>Medium Waffle Cone</span><span class="brown">Dipped Waffle Cone With Sprinkles</span></div></div>
+      </div>
+    </section>
+
+    <section class="panel" id="tabs">
+      <h2>Where things are <a href="register.html?mode=lesson&lesson=tabs">Practice →</a></h2>
+      <div class="table-wrap"><table class="tabs">
+        <tr><td>Main Menu</td><td>Cones, cups, waffle cones/bowls, dipped add-ons, shakes, hurricanes, pint, quart, 4 Scoop Sampler, Cone Special</td></tr>
+        <tr><td>Cones and Dishes</td><td>Every cone and cup size, Kid's Cone, Dipped Kid's Cone, Cone Special, dipped add-ons</td></tr>
+        <tr><td>Pints and Quarts</td><td>Pint, Quart, 4 Pack Pint, 2 Pack Waffle Cone/Bowl, 5 Pack Cones</td></tr>
+        <tr><td>Sundaes</td><td>Sundae, Banana Split, Brownie, Blondie, Turtle, Waffle Bowl Sundae, Extra Topping, Whipped Cream, Sprinkles</td></tr>
+        <tr><td>Shakes and Drinks</td><td>Shake, Thick Shake, Monster Shakes, Malt, Boston Cooler, Freeze, Float, water, soft drink</td></tr>
+        <tr><td>Hurricanes</td><td>Small / Medium / Large Hurricane, Extra Topping</td></tr>
+        <tr><td>Novelties</td><td>4 Scoop Sampler, Dog Treat, Handel Pop, Ice Cream Sandwich</td></tr>
+        <tr><td>Extras</td><td>Extra cone/dish/topping, whipped cream, nuts, sprinkles, Apple Dumpling, dipped add-ons</td></tr>
+        <tr><td>Gift Cards and Merch.</td><td>Gift cards (sell, reload, check balance), coins, pint cards, hat, T-shirt</td></tr>
+        <tr><td>Catering and Misc.</td><td>Catering, DoorDash, Misc. Item, Flavor Boxes</td></tr>
+      </table></div>
+    </section>
+
+    <section class="panel" id="fixing">
+      <h2>Fixing mistakes <a href="register.html?mode=lesson&lesson=fixing-mistakes">Practice →</a></h2>
+      <ol class="steps">
+        <li><strong>Tap the wrong line(s)</strong> on the left to highlight them. You can highlight more than one.</li>
+        <li>Tap <strong>Manager</strong> at the top.</li>
+        <li>Tap <strong>Delete Item</strong>. Every highlighted line is removed.</li>
+      </ol>
+      <ul>
+        <li>Nothing highlighted? <strong>Delete Item removes the last line.</strong></li>
+        <li><strong>Delete All</strong> clears the whole order. Only use it when the guest cancels everything.</li>
+        <li>Guest changes their mind? Delete only what changed, then ring the new item. Don't start over.</li>
+      </ul>
+    </section>
+
+    <section class="panel" id="payment">
+      <h2>Taking payment <a href="register.html?mode=lesson&lesson=payment">Practice →</a></h2>
+      <div class="rule"><strong>Enter the cash they HAND you, not the total.</strong> That's how the register shows the right change.</div>
+      <ul>
+        <li><strong>$1 / $5 / $10 / $20:</strong> tap the bills you were handed (tap $20 twice for $40).</li>
+        <li><strong>Exact</strong> (shows the total): guest paid the exact amount.</li>
+        <li><strong>Nearest</strong>: rounds up to the next dollar.</li>
+        <li><strong>Custom $</strong>: type any amount (e.g. $50 bill), then Enter.</li>
+        <li><strong>Card, tap or phone pay</strong> → <strong>Pay with Pinpad</strong>.</li>
+      </ul>
+    </section>
+
+    <section class="panel" id="discounts">
+      <h2>Discounts <a href="register.html?mode=lesson&lesson=discounts">Practice →</a></h2>
+      <p>Ring the order first, then <strong>Discount → % Discount → type the percent → OK</strong>.</p>
+      <ul>
+        <li><strong>50% off:</strong> off-the-clock team members, team members' families, and veterans, military and first responders (police, firefighters, EMTs) and their families.</li>
+        <li>Veterans/military/first responder discount does <strong>not</strong> apply to pints and quarts.</li>
+        <li>No discounts on <strong>gift cards</strong>. Discounts can't be combined with <strong>coupons</strong>.</li>
+        <li>Not sure? Ask your shift lead before applying a discount.</li>
+      </ul>
+    </section>
+
+    <section class="panel" id="callouts">
+      <h2>Calling out orders</h2>
+      <p>After ringing, call the order to the scooper: <strong>vessel + flavors</strong>. The scooper knows the size from the number of flavors.</p>
+      <div class="examples">
+        <div class="ex"><div class="say">"Can I get a cake cone strawberry?"</div><div class="ring">1 flavor → Small</div></div>
+        <div class="ex"><div class="say">"Can I get a waffle of coffee and graham?"</div><div class="ring">2 flavors → Medium</div></div>
+      </div>
+      <p class="muted">Nicknames: "coffee" = Coffee Chocolate Chip · "graham" = Graham Central Station</p>
+    </section>
+
+    <section class="panel" id="flavors">
+      <h2>Flavors guests ask about</h2>
+      <p>Be ready to describe these:</p>
+      <dl class="flavors">
+        <dt>Blue Monster</dt><dd>Blue vanilla ice cream with Oreos and chocolate chip cookies</dd>
+        <dt>Buckeye</dt><dd>Peanut butter ice cream with a fudge ripple and chocolate-covered peanut butter candies</dd>
+        <dt>Dulce De Leche</dt><dd>Caramel ice cream with a caramel ripple</dd>
+        <dt>Graham Central Station</dt><dd>Graham ice cream with a graham cracker ripple and chocolate-covered crunchies</dd>
+        <dt>Monkey Business</dt><dd>Banana cake batter ice cream with a caramel ripple and brownie pieces</dd>
+        <dt>Mud Pie</dt><dd>Coffee ice cream with a fudge ripple and Oreos</dd>
+        <dt>Ohh..Dough!</dt><dd>Vanilla ice cream with Oreos and cookie dough</dd>
+        <dt>Twixter</dt><dd>Vanilla ice cream with chocolate chips, sugar gems and a caramel ripple</dd>
+      </dl>
+      <p><strong>Vegan / dairy free:</strong> Blue Moon Ice, Chocolate Almond Milk, Mango Sorbet, Watermelon Ice.</p>
+    </section>
+  </main>
+</body>
+</html>
