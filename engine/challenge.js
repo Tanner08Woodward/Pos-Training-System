@@ -173,12 +173,12 @@ var Challenge = (() => {
       ...result,
       events: events.slice(startIdx),
     };
-    const saved = Storage.saveAttempt(attempt);
+    Storage.saveAttempt(attempt);
     // Let the register's own "Thank you!" popup close first.
-    setTimeout(() => showResults(result, saved), 50);
+    setTimeout(() => showResults(result, attempt.id), 50);
   }
 
-  function showResults(r, saved) {
+  function showResults(r, attemptId) {
     const idx = Scenarios.list.findIndex(s => s.id === scenario.id);
     const next = Scenarios.list[idx + 1];
     const box = modal(`
@@ -204,12 +204,13 @@ var Challenge = (() => {
         ${lines.map(l => `<p>“${esc(l)}”</p>`).join("")}
       </details>
       ${!r.passed && scenario.tip ? `<p class="ch-tip"><strong>Tip:</strong> ${esc(scenario.tip)}</p>` : ""}
-      ${saved ? "" : `<p class="ch-muted">This result could not be saved on this device.</p>`}
+      <p class="save-status" id="ch-save-status" role="status" aria-live="polite"></p>
       <div class="ch-actions">
         <button class="ch-primary" id="ch-again">Try again</button>
         ${next ? `<button id="ch-next">Next challenge</button>` : ""}
         <a class="ch-link" href="index.html">Training Lab</a>
       </div>`);
+    Storage.showSaveStatus(box.querySelector("#ch-save-status"), attemptId);
     box.querySelector("#ch-again").onclick = () => window.location.reload();
     if (next) {
       box.querySelector("#ch-next").onclick = () => {

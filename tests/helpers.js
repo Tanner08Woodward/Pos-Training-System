@@ -56,6 +56,6 @@ function ui(w) {
 }
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
-const attempts = w => JSON.parse(w.localStorage.getItem("ptl.attempts.v1") || "[]");
+const attempts = w => w.Storage.listAttempts();
 
 module.exports = { closeAll, loadRegister, ui, wait, attempts, ROOT };

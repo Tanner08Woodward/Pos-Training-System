@@ -83,6 +83,17 @@ test("a finished challenge is sent to the shared database", async () => {
   assert.strictEqual(call.body.p.mode, "challenge");
   assert.ok(call.headers.apikey);
   assert.strictEqual(w.Storage.pendingCount(), 0);
+  assert.match(u.modalText(), /Sent to your manager/);
+});
+
+test("challenge results show authentication failure without losing the retry", async () => {
+  const w = loadRegister("?mode=challenge&scenario=cake-cone", { trainee: TRAINEE });
+  w.fetch = async () => ({ ok: false, status: 401, text: async () => JSON.stringify({ message: "Invalid API key" }) });
+  const u = ui(w);
+  u.start(); u.tapItem("Small Cone"); u.pay(); u.pinpad();
+  await wait(700);
+  assert.match(u.modalText(), /couldn't send.*Tell your manager/);
+  assert.strictEqual(w.Storage.pendingCount(), 1);
 });
 
 test("a change of mind pops up in the middle of the screen", async () => {

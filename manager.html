@@ -144,6 +144,33 @@
     const pct = (n, d) => d ? Math.round((100 * n) / d) : 0;
     const CODE_KEY = "ptl.managerCode";
 
+    // Database results are untrusted input, even when retrieved with a code.
+    // Normalize numbers before interpolation; escape all displayed strings.
+    const num = (value, max = 1000000) => typeof value === "number" && Number.isFinite(value)
+      ? Math.max(0, Math.min(max, value)) : 0;
+    const array = value => Array.isArray(value) ? value : [];
+    const object = value => value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    function normalizeAttempt(value) {
+      const a = object(value), t = object(a.trainee), points = object(a.points);
+      if (typeof a.id !== "string" || typeof t.id !== "string" || typeof t.name !== "string") return null;
+      return {
+        ...a, trainee: { id: t.id, name: t.name },
+        mode: a.mode === "lesson" ? "lesson" : "challenge",
+        scenarioId: String(a.scenarioId || ""), scenarioTitle: String(a.scenarioTitle || "Untitled attempt"),
+        finishedAt: typeof a.finishedAt === "string" ? a.finishedAt : "",
+        score: num(a.score, 100), passed: a.passed === true,
+        seconds: num(a.seconds), stars: Math.floor(num(a.stars, 3)),
+        hintsNeeded: num(a.hintsNeeded), wrongTaps: num(a.wrongTaps),
+        points: { accuracy: num(points.accuracy, 50), payment: num(points.payment, 20),
+          corrections: num(points.corrections, 15), speed: num(points.speed, 15) },
+        mistakes: array(a.mistakes).map(m => ({ code: String(object(m).code || ""), text: String(object(m).text || "") })),
+        feedback: array(a.feedback).map(f => ({ ok: object(f).ok === true, text: String(object(f).text || "") })),
+        expected: array(a.expected).map(String), rung: array(a.rung).map(String),
+        events: array(a.events).map(e => ({ type: String(object(e).type || ""), t: num(object(e).t), data: object(object(e).data) })),
+      };
+    }
+    const normalizeAttempts = data => array(data).map(normalizeAttempt).filter(Boolean);
+
     // Plain-language names for each mistake the scoring can find.
     const PROBLEMS = {
       wrong_size: "Rings the wrong size",
@@ -158,7 +185,7 @@
       slow: "Slower than the goal time",
       missed_change: "Misses when the customer changes their mind",
     };
-    const problem = code => PROBLEMS[code] || code;
+    const problem = code => Object.prototype.hasOwnProperty.call(PROBLEMS, code) ? PROBLEMS[code] : code;
 
     // Which lesson helps with which problem.
     const PRACTICE = {
@@ -169,6 +196,14 @@
 
     let ALL = [];          // every attempt (challenges + lessons)
     let SOURCE = "device"; // "database" or "device"
+    let SOURCE_WARNING = "";
+
+    function sourceBanner() {
+      const local = SOURCE === "device";
+      const pending = Storage.pendingCount(), rejected = Storage.rejectedCount();
+      return (local ? `<section class="banner" role="alert"><strong>Device-only results — other devices are missing.</strong><p>${esc(SOURCE_WARNING || "Shared results are unavailable. This is not the complete team report.")}</p></section>` : "") +
+        (pending || rejected ? `<section class="banner" role="status"><strong>Some results from this device haven't reached the manager.</strong><p>${pending} waiting to send · ${rejected} rejected. Keep this device's browser data until the results are recovered.</p></section>` : "");
+    }
 
     function getCode() {
       try { return sessionStorage.getItem(CODE_KEY); } catch (e) { return null; }
@@ -185,8 +220,9 @@
 
     async function load() {
       if (!Storage.remoteEnabled) {
-        ALL = Storage.listAttempts();
+        ALL = normalizeAttempts(Storage.listAttempts());
         SOURCE = "device";
+        SOURCE_WARNING = "Shared saving isn't connected. This is not the complete team report.";
         return showOverview();
       }
       const code = getCode();
@@ -194,20 +230,22 @@
       app.innerHTML = `<p class="empty">Loading results…</p>`;
       try {
         await Storage.syncPending();
-        ALL = mergeWithLocal(await Storage.fetchAllAttempts(code));
+        ALL = normalizeAttempts(mergeWithLocal(await Storage.fetchAllAttempts(code)));
         SOURCE = "database";
+        SOURCE_WARNING = "";
         showOverview();
       } catch (err) {
         if (/wrong code/i.test(err.message)) {
           setCode(null);
           return showLogin("That code didn't work.");
         }
-        ALL = Storage.listAttempts();
+        ALL = normalizeAttempts(Storage.listAttempts());
         SOURCE = "device";
         const why = err.status === 404
           ? "The shared database isn't set up yet: run supabase/schema.sql in the Supabase SQL Editor."
-          : `Couldn't reach the shared database (${esc(err.message)}).`;
-        showOverview(`${why} Showing results saved on this device only.`);
+          : `Couldn't reach the shared database (${err.message}).`;
+        SOURCE_WARNING = why;
+        showOverview();
       }
     }
 
@@ -245,7 +283,7 @@
 
     // Counts how many attempts had each mistake (once per attempt).
     function countProblems(list, skipSlow) {
-      const counts = {};
+      const counts = Object.create(null);
       list.forEach(a => new Set((a.mistakes || []).map(m => m.code)).forEach(c => {
         if (skipSlow && c === "slow") return;
         counts[c] = (counts[c] || 0) + 1;
@@ -285,13 +323,14 @@
       help: ["!", "Needs help"],
       new: ["○", "Not started"],
     };
-    const pill = (cls, icon, word) => `<span class="status ${cls}"><span aria-hidden="true">${icon}</span>${word}</span>`;
+    const pill = (cls, icon, word) => `<span class="status ${esc(cls)}"><span aria-hidden="true">${esc(icon)}</span>${esc(word)}</span>`;
     const statusPill = s => pill(s, STATUS[s][0], STATUS[s][1]);
 
     function meter(label, n, d) {
+      n = num(n); d = num(d);
       return `<div class="meter" title="${esc(label)}: ${n} of ${d}">
         <div class="top"><span>${esc(label)}</span><b>${n}/${d}</b></div>
-        <div class="track"><div class="fill" style="width:${pct(n, d)}%"></div></div></div>`;
+        <div class="track"><div class="fill" style="width:${Math.min(100, pct(n, d))}%"></div></div></div>`;
     }
 
     function suggestion(p) {
@@ -300,7 +339,7 @@
     }
 
     // ---- View 1: the team ------------------------------------------------------
-    function showOverview(warning) {
+    function showOverview() {
       const order = { help: 0, training: 1, new: 2, ready: 3 };
       const people = trainees().sort((a, b) => order[a.status] - order[b.status] || (b.last || "").localeCompare(a.last || ""));
       const challenges = ALL.filter(a => a.mode !== "lesson");
@@ -308,12 +347,11 @@
       const help = people.filter(p => p.status === "help");
 
       const teamProblems = countProblems(challenges, false).slice(0, 6);
-      const whoHas = {};
+      const whoHas = Object.create(null);
       challenges.forEach(a => (a.mistakes || []).forEach(m => (whoHas[m.code] = whoHas[m.code] || new Set()).add(a.trainee.name)));
 
       app.innerHTML = `
-        ${warning ? `<div class="banner">${warning}</div>` : ""}
-        ${SOURCE === "device" && !warning ? `<div class="banner">Showing results saved on this device.</div>` : ""}
+        ${sourceBanner()}
 
         <section class="kpis" style="margin-bottom:16px">
           <div class="kpi"><div class="v">${people.length}</div><div class="l">Trainees</div></div>
@@ -369,13 +407,20 @@
           <h2>Data</h2>
           <p class="sub">${SOURCE === "database" ? "Results from every device (shared database)." : "Results saved on this device."}</p>
           <button class="btn gray small" id="export">Download results (JSON)</button>
-          <button class="btn red small" id="clear">Delete all results</button>
+          ${Storage.rejectedCount() ? `<button class="btn gray small" id="retry">Resend rejected results from this device</button>` : ""}
+          <button class="btn red small" id="clear">${SOURCE === "database" ? "Delete shared results" : "Remove sent results from this device"}</button>
           ${SOURCE === "database" ? `<button class="btn gray small" id="signout">Sign out</button>` : ""}
         </section>`;
 
       app.querySelectorAll("[data-id]").forEach(el => el.onclick = () => showTrainee(el.dataset.id));
       document.getElementById("export").onclick = exportJSON;
       document.getElementById("clear").onclick = clearAll;
+      const retry = document.getElementById("retry");
+      if (retry) retry.onclick = async () => {
+        retry.disabled = true;
+        try { await Storage.retryRejected(); await load(); }
+        catch (err) { alert("Couldn't resend: " + err.message); retry.disabled = false; }
+      };
       const so = document.getElementById("signout");
       if (so) so.onclick = () => { setCode(null); load(); };
       window.scrollTo(0, 0);
@@ -396,6 +441,7 @@
       const recent = p.all.slice().reverse();
 
       app.innerHTML = `
+        ${sourceBanner()}
         <a class="back-link" id="back">← All trainees</a>
         <section class="panel">
           <h2 style="font-size:1.5rem">${esc(p.trainee.name)} ${statusPill(p.status)}</h2>
@@ -509,15 +555,15 @@
         case "item_added": return ["", `Rang ${d.item}`];
         case "line_selected": return ["", `${d.selected ? "Highlighted" : "Un-highlighted"} line ${d.line} (${d.item})`];
         case "item_removed": return ["bad", `Deleted ${d.item}${d.method === "delete_last" ? " (last line)" : ""}`];
-        case "order_cleared": return ["bad", `Delete All (${d.itemsRemoved.length} items)`];
+        case "order_cleared": return ["bad", `Delete All (${array(d.itemsRemoved).length} items)`];
         case "delete_on_empty_order": return ["bad", "Pressed Delete on an empty order"];
         case "empty_slot_tapped": return ["bad", "Tapped an empty spot"];
         case "screen_opened": return ["", `Opened ${SCREENS[d.screen] || d.screen}`];
         case "screen_closed": return ["", `Closed ${SCREENS[d.screen] || d.screen}`];
         case "discount_applied": return ["", `Discount ${d.kind === "percent" ? d.percent + "%" : "$" + d.amount}`];
-        case "tender_applied": return ["pay", d.method === "pinpad" ? "Pay with Pinpad" : `Entered $${Number(d.amount).toFixed(2)} cash (${d.method.replace("_button", "")})`];
+        case "tender_applied": return ["pay", d.method === "pinpad" ? "Pay with Pinpad" : `Entered $${num(d.amount).toFixed(2)} cash (${String(d.method || "unknown").replace("_button", "")})`];
         case "custom_amount_invalid": return ["bad", "Invalid custom amount"];
-        case "transaction_completed": return ["pay", `Sale completed: total $${d.total.toFixed(2)}, paid $${d.paid.toFixed(2)}, change $${d.change.toFixed(2)}`];
+        case "transaction_completed": return ["pay", `Sale completed: total $${num(d.total).toFixed(2)}, paid $${num(d.paid).toFixed(2)}, change $${num(d.change).toFixed(2)}`];
         case "coach_hint": return ["say", d.level >= 2 ? "Coach showed a tip" : "Coach made the button glow"];
         case "coach_wrong": return ["bad", "Wrong tap"];
         case "coach_restart": return ["bad", "Lesson restarted from checkpoint"];
@@ -537,6 +583,7 @@
       const shown = endIdx === -1 ? a.events : a.events.slice(0, endIdx + 1);
 
       app.innerHTML = `
+        ${sourceBanner()}
         <a class="back-link" id="back">← ${esc(a.trainee.name)}</a>
         <section class="panel">
           <h2 style="font-size:1.3rem">${isLesson ? "Lesson: " : ""}${esc(a.scenarioTitle)}
@@ -582,11 +629,13 @@
     }
 
     async function clearAll() {
-      const where = SOURCE === "database" ? "from EVERY device (shared database)" : "on this device";
-      if (!confirm(`Delete ALL training results ${where}? This can't be undone.`)) return;
+      const message = SOURCE === "database"
+        ? "Delete results currently in the shared database and remove sent results from this device? This can't be undone. Pending and rejected results stay on this device. Unsent results on this or other devices may upload later and reappear."
+        : "Remove sent results from this device? Pending and rejected results will be kept. This can't be undone.";
+      if (!confirm(message)) return;
       try {
         if (SOURCE === "database") await Storage.clearAllAttempts(getCode());
-        Storage.clearAttempts();
+        if (!Storage.clearAttempts()) throw new Error("Couldn't update this device's saved results.");
         load();
       } catch (err) {
         alert("Couldn't delete: " + err.message);

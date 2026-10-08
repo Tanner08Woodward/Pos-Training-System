@@ -51,6 +51,8 @@ for (const lesson of Lessons.list) {
     assert.strictEqual(saved.stars, 3);
     assert.strictEqual(saved.wrongTaps, 0);
     assert.strictEqual(saved.restarts, 0);
+    await w.Storage.syncPending();
+    assert.match(w.document.getElementById("coach-save-status").textContent, /Sent to your manager/);
   });
 }
 

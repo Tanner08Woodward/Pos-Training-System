@@ -1,6 +1,10 @@
 /* training.css: Challenge Mode pieces drawn on top of the register.
    Kept separate from style.css so the register's own look stays untouched. */
 
+.save-status { padding: 12px; border-left: 4px solid #a56a00; background: #fff4d6; font-size: 0.9rem; }
+.save-status[data-state="sent"] { border-color: #1a7f2e; background: #e3f6e3; }
+.save-status[data-state="unsaved"], .save-status[data-state="rejected"] { border-color: #b3261e; background: #fbe5e5; }
+
 /* Customer card (in the order panel, under "New Order") */
 #customer-card {
   background: #fdf6e3;
