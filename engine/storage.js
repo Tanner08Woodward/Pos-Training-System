@@ -66,14 +66,14 @@ var Storage = (() => {
     } finally {
       clearTimeout(timeout);
     }
-    let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch (err) { /* proxy errors may be HTML */ }
+    let data = null, parsed = !text;
+    try { data = text ? JSON.parse(text) : null; parsed = true; } catch (err) { /* proxy errors may be HTML */ }
     if (!res.ok) {
       const err = new Error((data && data.message) || `Database error ${res.status}`);
       err.status = res.status;
       throw err;
     }
-    if (text && data === null) throw new Error("Invalid database response");
+    if (!parsed) throw new Error("Invalid database response"); // JSON null is a valid answer
     return data;
   }
 
@@ -232,9 +232,46 @@ var Storage = (() => {
     return rpc("manager_clear", { p_code: code });
   }
 
+  // Manager: trainee codes and stores (supabase/003_trainee_codes.sql).
+  const fetchStores = code => rpc("manager_stores", { p_code: code });
+  const fetchTrainees = code => rpc("manager_trainees", { p_code: code });
+  const addTrainee = (code, storeId, name) => rpc("manager_add_trainee", { p_code: code, p_store: storeId, p_name: name });
+  const setTraineeActive = (code, id, active) => rpc("manager_set_trainee_active", { p_code: code, p_trainee: id, p_active: active });
+  const renameStore = (code, storeId, name) => rpc("manager_rename_store", { p_code: code, p_store: storeId, p_name: name });
+
   // ---- Trainee identity: first name + last initial only (may be minors) ----
   function getTrainee() {
     return read(KEYS.trainee, null);
+  }
+
+  // A trainee signed in with a code has a database id and a store. Older
+  // name-only trainees (and the no-database dev setup) have neither.
+  function hasTraineeCode(t = getTrainee()) {
+    return !!(t && t.storeId);
+  }
+
+  // Sign in with a 4-digit trainee code. Resolves to the trainee, or throws
+  // an Error whose .reason is "wrong_code", "busy", "not_set_up" or "offline".
+  async function signIn(code) {
+    const clean = String(code || "").replace(/\D/g, "");
+    const fail = (reason, message) => Object.assign(new Error(message), { reason });
+    if (!/^[0-9]{4}$/.test(clean)) throw fail("wrong_code", "Trainee codes are 4 digits.");
+    let found;
+    try {
+      found = await rpc("trainee_sign_in", { p_code: clean });
+    } catch (err) {
+      if (err.status === 404) throw fail("not_set_up", "Trainee codes aren't set up yet.");
+      if (/too many tries/i.test(err.message)) throw fail("busy", "Too many wrong codes. Wait a few minutes and try again.");
+      throw fail("offline", "Couldn't reach the database. Check the internet connection and try again.");
+    }
+    if (!found || typeof found.id !== "string") throw fail("wrong_code", "That code didn't work. Check it with your manager.");
+    const trainee = { id: found.id, name: String(found.name), storeId: String(found.storeId), storeName: String(found.storeName) };
+    write(KEYS.trainee, trainee);
+    return trainee;
+  }
+
+  function signOut() {
+    remove(KEYS.trainee);
   }
 
   function setTrainee(name) {
@@ -279,7 +316,8 @@ var Storage = (() => {
   window.addEventListener("online", syncPending);
 
   return {
-    getTrainee, setTrainee,
+    getTrainee, setTrainee, hasTraineeCode, signIn, signOut,
+    fetchStores, fetchTrainees, addTrainee, setTraineeActive, renameStore,
     listAttempts, saveAttempt, clearAttempts,
     remoteEnabled, syncPending, pendingCount, rejectedCount, retryRejected, getSaveStatus, showSaveStatus,
     fetchAllAttempts, clearAllAttempts,

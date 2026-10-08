@@ -155,6 +155,8 @@
       if (typeof a.id !== "string" || typeof t.id !== "string" || typeof t.name !== "string") return null;
       return {
         ...a, trainee: { id: t.id, name: t.name },
+        storeId: typeof a.storeId === "string" ? a.storeId : typeof t.storeId === "string" ? t.storeId : "",
+        storeName: typeof a.storeName === "string" ? a.storeName : typeof t.storeName === "string" ? t.storeName : "",
         mode: a.mode === "lesson" ? "lesson" : "challenge",
         scenarioId: String(a.scenarioId || ""), scenarioTitle: String(a.scenarioTitle || "Untitled attempt"),
         finishedAt: typeof a.finishedAt === "string" ? a.finishedAt : "",
@@ -197,6 +199,11 @@
     let ALL = [];          // every attempt (challenges + lessons)
     let SOURCE = "device"; // "database" or "device"
     let SOURCE_WARNING = "";
+    let ROSTER = null;     // trainees with codes (null = codes not set up)
+    let STORES = [];       // [{ id, name }]
+    const FILTER_KEY = "ptl.managerStore";
+    function getFilter() { try { return sessionStorage.getItem(FILTER_KEY) || ""; } catch (e) { return ""; } }
+    function setFilter(id) { try { sessionStorage.setItem(FILTER_KEY, id); } catch (e) {} }
 
     function sourceBanner() {
       const local = SOURCE === "device";
@@ -233,6 +240,7 @@
         ALL = normalizeAttempts(mergeWithLocal(await Storage.fetchAllAttempts(code)));
         SOURCE = "database";
         SOURCE_WARNING = "";
+        await loadRoster(code);
         showOverview();
       } catch (err) {
         if (/wrong code/i.test(err.message)) {
@@ -246,6 +254,22 @@
           : `Couldn't reach the shared database (${err.message}).`;
         SOURCE_WARNING = why;
         showOverview();
+      }
+    }
+
+    // Trainee codes and stores. Missing functions (404) = 003_trainee_codes.sql
+    // hasn't been run yet; the rest of the dashboard still works.
+    async function loadRoster(code) {
+      try {
+        const [stores, roster] = await Promise.all([Storage.fetchStores(code), Storage.fetchTrainees(code)]);
+        STORES = array(stores).map(x => ({ id: String(object(x).id || ""), name: String(object(x).name || "") })).filter(x => x.id);
+        ROSTER = array(roster).map(x => object(x)).filter(x => typeof x.id === "string").map(x => ({
+          id: x.id, name: String(x.name || ""), code: String(x.code || ""), active: x.active === true,
+          storeId: String(x.storeId || ""), storeName: String(x.storeName || ""),
+        }));
+      } catch (err) {
+        ROSTER = null;
+        STORES = [];
       }
     }
 
@@ -273,12 +297,17 @@
     // ---- Working out each trainee's status -----------------------------------
     function trainees() {
       const map = new Map();
+      // Everyone with a trainee code shows up, even before their first try.
+      (ROSTER || []).filter(r => r.active).forEach(r => map.set(r.id, { trainee: { id: r.id, name: r.name }, attempts: [], storeId: r.storeId, storeName: r.storeName }));
       ALL.forEach(a => {
         if (!a.trainee) return;
-        if (!map.has(a.trainee.id)) map.set(a.trainee.id, { trainee: a.trainee, attempts: [] });
-        map.get(a.trainee.id).attempts.push(a);
+        if (!map.has(a.trainee.id)) map.set(a.trainee.id, { trainee: a.trainee, attempts: [], storeId: "", storeName: "" });
+        const g = map.get(a.trainee.id);
+        g.attempts.push(a);
+        if (!g.storeId && a.storeId) { g.storeId = a.storeId; g.storeName = a.storeName; }
       });
-      return [...map.values()].map(summarize);
+      const filter = getFilter();
+      return [...map.values()].filter(g => !filter || g.storeId === filter).map(summarize);
     }
 
     // Counts how many attempts had each mistake (once per attempt).
@@ -350,10 +379,11 @@
     }
 
     // ---- View 1: the team ------------------------------------------------------
-    function showOverview() {
+    function showOverview(keepScroll) {
       const order = { help: 0, training: 1, new: 2, ready: 3 };
       const people = trainees().sort((a, b) => order[a.status] - order[b.status] || (b.last || "").localeCompare(a.last || ""));
-      const challenges = ALL.filter(a => a.mode !== "lesson");
+      const filter = getFilter();
+      const challenges = ALL.filter(a => a.mode !== "lesson" && (!filter || a.storeId === filter));
       const ready = people.filter(p => p.status === "ready").length;
       const help = people.filter(p => p.status === "help");
 
@@ -363,6 +393,14 @@
 
       app.innerHTML = `
         ${sourceBanner()}
+        ${STORES.length ? `
+        <div class="store-filter">
+          <label for="store-filter">Store</label>
+          <select id="store-filter">
+            <option value="">All stores</option>
+            ${STORES.map(st => `<option value="${esc(st.id)}" ${st.id === filter ? "selected" : ""}>${esc(st.name)}</option>`).join("")}
+          </select>
+        </div>` : ""}
 
         <section class="kpis" style="margin-bottom:16px">
           <div class="kpi"><div class="v">${people.length}</div><div class="l">Trainees</div></div>
@@ -394,13 +432,15 @@
           </div>
           <ul class="people">${people.map(p => `
             <li class="person" data-id="${esc(p.trainee.id)}">
-              <div><div class="name">${esc(p.trainee.name)}</div>${statusPill(p.status)}<div class="when">${p.last ? "Last practiced " + when(p.last) : ""}</div></div>
+              <div><div class="name">${esc(p.trainee.name)}</div>${p.storeName && !filter ? `<div class="store-tag">${esc(p.storeName)}</div>` : ""}${statusPill(p.status)}<div class="when">${p.last ? "Last practiced " + when(p.last) : ""}</div></div>
               ${meter("Lessons done", p.lessonsDone.length, Lessons.list.length)}
               ${meter("Challenges passed", p.passed.length, Scenarios.list.length)}
               <div class="issue">${p.problems.length ? esc(problem(p.problems[0][0])) : p.challenges.length ? "None lately" : "No challenges yet"}</div>
               <span class="go" aria-hidden="true">›</span>
-            </li>`).join("")}</ul>` : `<p class="empty">No one has trained yet. Trainees enter their name in the Training Lab, then do lessons and challenges.</p>`}
+            </li>`).join("")}</ul>` : `<p class="empty">No one has trained yet. Add trainees below, give each their code, and they sign in at the Training Lab.</p>`}
         </section>
+
+        ${rosterSection(filter)}
 
         <section class="panel">
           <h2>What the team gets wrong most</h2>
@@ -424,6 +464,9 @@
         </section>`;
 
       app.querySelectorAll("[data-id]").forEach(el => el.onclick = () => showTrainee(el.dataset.id));
+      const storeFilter = document.getElementById("store-filter");
+      if (storeFilter) storeFilter.onchange = () => { setFilter(storeFilter.value); showOverview(true); };
+      wireRoster();
       document.getElementById("export").onclick = exportJSON;
       document.getElementById("clear").onclick = clearAll;
       const retry = document.getElementById("retry");
@@ -434,7 +477,72 @@
       };
       const so = document.getElementById("signout");
       if (so) so.onclick = () => { setCode(null); load(); };
-      window.scrollTo(0, 0);
+      if (!keepScroll) window.scrollTo(0, 0);
+    }
+
+    // ---- Trainee codes ---------------------------------------------------------------
+    function rosterSection(filter) {
+      if (SOURCE !== "database") return "";
+      if (!ROSTER) return `
+        <section class="panel">
+          <h2>Trainee codes</h2>
+          <p class="sub">Not set up yet: run <b>supabase/003_trainee_codes.sql</b> in the Supabase SQL Editor, then reload this page.</p>
+        </section>`;
+      const stores = STORES.filter(st => !filter || st.id === filter);
+      return `
+        <section class="panel" id="codes">
+          <h2>Trainee codes</h2>
+          <p class="sub">Give each trainee their 4-digit code. They type it in the Training Lab, and every result is saved under them and their store. Turn a code off when someone leaves; their results stay.</p>
+          ${stores.map(st => {
+            const people = ROSTER.filter(r => r.storeId === st.id);
+            return `
+              <div class="codes-store"><h3>${esc(st.name)}</h3><button class="btn gray small" data-rename="${esc(st.id)}">Rename</button></div>
+              ${people.length ? `<ul class="codes">${people.map(r => `
+                <li class="${r.active ? "" : "off"}">
+                  <span>${esc(r.name)}${r.active ? "" : " (off)"}</span>
+                  <span class="code" aria-label="Code">${esc(r.code)}</span>
+                  <button class="btn ${r.active ? "gray" : "green"} small" data-toggle="${esc(r.id)}" data-active="${r.active ? "1" : ""}">${r.active ? "Turn off" : "Turn on"}</button>
+                </li>`).join("")}</ul>` : `<p class="empty">No trainees yet.</p>`}`;
+          }).join("")}
+          <form class="add-trainee" id="add-trainee">
+            <input id="new-name" maxlength="40" autocomplete="off" placeholder="First name + last initial" aria-label="Trainee name" />
+            <select id="new-store" aria-label="Store">${STORES.map(st => `<option value="${esc(st.id)}" ${st.id === filter ? "selected" : ""}>${esc(st.name)}</option>`).join("")}</select>
+            <button class="btn green" type="submit">Add trainee</button>
+          </form>
+        </section>`;
+    }
+
+    function wireRoster() {
+      const code = getCode();
+      const form = document.getElementById("add-trainee");
+      if (form) form.onsubmit = async e => {
+        e.preventDefault();
+        const name = document.getElementById("new-name").value.trim();
+        if (!name) return document.getElementById("new-name").focus();
+        try {
+          const added = await Storage.addTrainee(code, document.getElementById("new-store").value, name);
+          await loadRoster(code);
+          showOverview(true);
+          alert(`${object(added).name}'s trainee code is ${object(added).code}.`);
+        } catch (err) { alert("Couldn't add: " + err.message); }
+      };
+      app.querySelectorAll("[data-toggle]").forEach(b => b.onclick = async () => {
+        try {
+          await Storage.setTraineeActive(code, b.dataset.toggle, !b.dataset.active);
+          await loadRoster(code);
+          showOverview(true);
+        } catch (err) { alert("Couldn't change: " + err.message); }
+      });
+      app.querySelectorAll("[data-rename]").forEach(b => b.onclick = async () => {
+        const store = STORES.find(st => st.id === b.dataset.rename);
+        const name = prompt("New store name", store ? store.name : "");
+        if (!name || !name.trim()) return;
+        try {
+          await Storage.renameStore(code, b.dataset.rename, name.trim());
+          await loadRoster(code);
+          showOverview(true);
+        } catch (err) { alert("Couldn't rename: " + err.message); }
+      });
     }
 
     // ---- View 2: one trainee -----------------------------------------------------

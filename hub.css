@@ -139,3 +139,21 @@ tr.clickable:hover { background: #f3f6fc; }
 .feedback .ok { color: #1a7f2e; }
 .feedback .bad { color: #b3261e; }
 .back-link { display: inline-block; margin-bottom: 10px; color: #2852a8; font-weight: bold; cursor: pointer; }
+
+/* Trainee code sign-in + manager trainee codes */
+.err { color: #b3261e; font-weight: bold; }
+#trainee-code { flex: 0 1 180px; letter-spacing: 0.3em; font-size: 1.3rem; text-align: center; }
+.codes-store { margin: 14px 0 6px; display: flex; align-items: center; gap: 10px; }
+.codes-store h3 { margin: 0; font-size: 1rem; }
+.codes { list-style: none; margin: 0; padding: 0; }
+.codes li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+.codes .code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1.15rem; font-weight: bold; letter-spacing: 0.15em; }
+.codes li.off { color: #888; }
+.codes li.off .code { text-decoration: line-through; }
+.add-trainee { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.add-trainee input, .add-trainee select { padding: 10px; font-size: 1rem; border: 2px solid #bbb; border-radius: 5px; }
+.add-trainee input { flex: 1 1 180px; }
+.store-filter { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.store-filter select { padding: 8px; font-size: 1rem; border: 2px solid #bbb; border-radius: 5px; }
+.store-tag { font-size: 0.8rem; color: #555; }
+#trainee-code::placeholder { letter-spacing: normal; font-size: 1rem; }

@@ -65,20 +65,58 @@
   <script>
     const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+    // Who is training. With the shared database, trainees sign in with the
+    // 4-digit code their manager gives them; results then belong to that
+    // person and their store. Without it (local testing), they type a name.
     function renderWho() {
       const panel = document.getElementById("who-panel");
       const t = Storage.getTrainee();
-      if (t) {
+      const needsCode = Storage.remoteEnabled && !codesUnavailable;
+      if (t && (!needsCode || Storage.hasTraineeCode(t))) {
         panel.innerHTML = `
           <div class="name-row">
-            <div class="who" style="flex:1">Training as <strong>${esc(t.name)}</strong></div>
+            <div class="who" style="flex:1">Training as <strong>${esc(t.name)}</strong>${t.storeName ? ` <span class="muted">· ${esc(t.storeName)}</span>` : ""}</div>
             <button class="btn gray small" id="switch">Not you?</button>
           </div>`;
-        document.getElementById("switch").onclick = () => editName(t.name);
+        document.getElementById("switch").onclick = () => {
+          Storage.signOut();
+          renderWho();
+        };
+      } else if (needsCode) {
+        askCode();
       } else {
-        editName("");
+        editName(t ? t.name : "");
       }
       renderChallenges();
+    }
+
+    let codesUnavailable = false;
+
+    function askCode(message) {
+      const panel = document.getElementById("who-panel");
+      panel.innerHTML = `
+        <h2>Who's training?</h2>
+        <p class="muted">Enter your 4-digit trainee code. Your manager gives you this code.</p>
+        ${message ? `<p class="err" role="alert">${esc(message)}</p>` : ""}
+        <form class="name-row" id="code-form">
+          <input id="trainee-code" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}"
+            placeholder="Trainee code" aria-label="Trainee code" />
+          <button class="btn green" type="submit">Start training</button>
+        </form>`;
+      const input = document.getElementById("trainee-code");
+      document.getElementById("code-form").onsubmit = async e => {
+        e.preventDefault();
+        const button = e.target.querySelector("button");
+        button.disabled = true;
+        try {
+          await Storage.signIn(input.value);
+          renderWho();
+        } catch (err) {
+          if (err.reason === "not_set_up") { codesUnavailable = true; return renderWho(); }
+          askCode(err.message);
+        }
+      };
+      input.focus();
     }
 
     function editName(current) {
@@ -105,7 +143,7 @@
       const done = Lessons.list.filter(l => mine.some(a => a.scenarioId === l.id)).length;
       document.getElementById("lesson-note").textContent = t
         ? `${done} of ${Lessons.list.length} done. Start here, then try the Challenges.`
-        : "Enter your name above to start training.";
+        : "Sign in above to start training.";
       document.getElementById("lesson-list").innerHTML = Lessons.list.map((l, i) => {
         const tries = mine.filter(a => a.scenarioId === l.id);
         const best = tries.reduce((b, a) => Math.max(b, a.stars || 0), 0);
@@ -134,7 +172,7 @@
 
       document.getElementById("challenge-note").textContent = t
         ? `${passedCount} of ${Scenarios.list.length} passed. Pass = right order, right payment, and 80+ points.`
-        : "Enter your name above to start challenges.";
+        : "Sign in above to start challenges.";
 
       list.innerHTML = Scenarios.list.map(s => {
         const tries = mine.filter(a => a.scenarioId === s.id);
