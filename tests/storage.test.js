@@ -10,12 +10,13 @@ test.after(() => windows.forEach(w => w.close()));
 const attempt = id => ({ id, trainee: { id: "test", name: "Test" }, mode: "challenge" });
 const response = (status, data = "ok") => ({ ok: status < 400, status, text: async () => JSON.stringify(data) });
 
-function load({ fetch = async () => response(200), legacy, failWrites = false } = {}) {
-  const w = new JSDOM("<body><p id='status' role='status'></p></body>", { url: "https://test.local", runScripts: "outside-only" }).window;
+function load({ fetch = async () => response(200), legacy, failWrites = false, seed = {}, quota = 5000000 } = {}) {
+  const w = new JSDOM("<body><p id='status' role='status'></p></body>", { url: "https://test.local", runScripts: "outside-only", storageQuota: quota }).window;
   windows.push(w);
   w.console.warn = () => {};
   w.AppConfig = { supabaseUrl: "https://test.supabase.co", supabasePublishableKey: "sb_publishable_test" };
   w.fetch = fetch;
+  Object.entries(seed).forEach(([key, value]) => w.localStorage.setItem(key, value));
   if (legacy) {
     w.localStorage.setItem("ptl.attempts.v1", JSON.stringify(legacy));
     w.localStorage.setItem("ptl.pending.v1", JSON.stringify([legacy[0].id]));
@@ -89,16 +90,121 @@ test("storage quota failure reports unsaved instead of success and does not send
   assert.equal(calls, 0);
 });
 
-test("migration retains legacy backups and retries attempts whose old queue marker was lost", async () => {
+test("migration removes redundant legacy copies only after persisting all attempts", async () => {
   const calls = [];
   const legacy = [attempt("a"), attempt("b")];
   const w = load({ legacy, fetch: async (url, opts) => { calls.push(JSON.parse(opts.body).p.id); return response(200); } });
   await w.Storage.syncPending();
   assert.deepEqual(calls, ["a", "b"]);
   assert.equal(w.Storage.listAttempts().length, 2);
-  assert.equal(JSON.parse(w.localStorage.getItem("ptl.attempts.v1")).length, 2);
+  assert.equal(w.localStorage.getItem("ptl.attempts.v1"), null);
+  assert.equal(JSON.parse(w.localStorage.getItem("ptl.records.v2")).length, 2);
   await w.Storage.syncPending();
   assert.equal(calls.length, 2);
+});
+
+function snapshot(w) {
+  return Object.fromEntries(Array.from({ length: w.localStorage.length }, (_, i) => {
+    const key = w.localStorage.key(i);
+    return [key, w.localStorage.getItem(key)];
+  }));
+}
+
+test("over-half-full legacy storage still saves and sends without repeated uploads after reload", async () => {
+  const calls = [];
+  const legacy = Array.from({ length: 110 }, (_, i) => ({ ...attempt("old" + i), padding: "x".repeat(24000) }));
+  const fetch = async (url, opts) => { calls.push(JSON.parse(opts.body).p.id); return response(200); };
+  const w = load({ legacy, fetch });
+  assert.ok(w.localStorage.getItem("ptl.attempts.v1").length > 2500000);
+  assert.equal(w.localStorage.getItem("ptl.records.v2"), null, "full duplicate won't fit");
+  assert.equal(w.Storage.saveAttempt(attempt("new")), true, "new attempt still fits in place");
+  await w.Storage.syncPending();
+  assert.equal(calls.length, 111);
+  assert.equal(w.Storage.pendingCount(), 0);
+  assert.equal(w.Storage.getSaveStatus("new").state, "sent");
+  const saved = snapshot(w);
+  w.close();
+  const reloaded = load({ seed: saved, fetch });
+  await reloaded.Storage.syncPending();
+  assert.equal(calls.length, 111, "sent states survive failed migration on reload");
+  assert.equal(reloaded.Storage.listAttempts().length, 111);
+  assert.equal(reloaded.Storage.pendingCount(), 0);
+});
+
+test("results written by an older tab after migration are recovered and deduplicated", async () => {
+  const calls = [];
+  const fetch = async (url, opts) => { calls.push(JSON.parse(opts.body).p.id); return response(200); };
+  const w = load({ legacy: [attempt("old")], fetch });
+  await w.Storage.syncPending();
+  // Simulate an old page persisting its stale list plus one new attempt.
+  w.localStorage.setItem("ptl.attempts.v1", JSON.stringify([attempt("old"), attempt("late")]));
+  assert.equal(w.Storage.listAttempts().length, 2);
+  const saved = snapshot(w);
+  w.close();
+  const reloaded = load({ seed: saved, fetch });
+  await reloaded.Storage.syncPending();
+  assert.deepEqual(calls, ["old", "late"]);
+  assert.equal(reloaded.Storage.listAttempts().length, 2);
+  assert.equal(reloaded.localStorage.getItem("ptl.attempts.v1"), null);
+});
+
+test("older-tab results still save when both existing v2 and late v1 data fill the device", async () => {
+  const calls = [];
+  const primary = Array.from({ length: 8 }, (_, i) => ({ attempt: { ...attempt("primary" + i), padding: "x".repeat(300000) }, status: "sent", error: null }));
+  const legacy = Array.from({ length: 8 }, (_, i) => ({ ...attempt("late" + i), padding: "x".repeat(300000) }));
+  const seed = { "ptl.records.v2": JSON.stringify(primary), "ptl.attempts.v1": JSON.stringify(legacy) };
+  const w = load({ seed, fetch: async (url, opts) => { calls.push(JSON.parse(opts.body).p.id); return response(200); } });
+  assert.equal(w.Storage.saveAttempt(attempt("new")), true);
+  await w.Storage.syncPending();
+  assert.deepEqual(calls, [...legacy.map(a => a.id), "new"]);
+  assert.equal(w.Storage.listAttempts().length, 17);
+  assert.equal(w.Storage.pendingCount(), 0);
+  const saved = snapshot(w);
+  w.close();
+  const reloaded = load({ seed: saved, fetch: async () => { throw new Error("Must not resend"); } });
+  await reloaded.Storage.syncPending();
+  assert.equal(reloaded.Storage.pendingCount(), 0);
+  assert.equal(reloaded.Storage.listAttempts().length, 17);
+});
+
+test("a manager can explicitly resend rejected results after the server is fixed", async () => {
+  let accepting = false;
+  const w = load({ fetch: async () => accepting ? response(200) : response(400, { message: "bad configuration" }) });
+  w.Storage.saveAttempt(attempt("a"));
+  await w.Storage.syncPending();
+  assert.equal(w.Storage.rejectedCount(), 1);
+  accepting = true;
+  await w.Storage.retryRejected();
+  assert.equal(w.Storage.rejectedCount(), 0);
+  assert.equal(w.Storage.pendingCount(), 0);
+  assert.equal(w.Storage.getSaveStatus("a").state, "sent");
+});
+
+test("clear removes sent copies but preserves pending and rejected attempts", () => {
+  const initial = ["sent", "pending", "rejected"].map(status => ({ attempt: attempt(status), status, error: null }));
+  const w = load({ seed: { "ptl.records.v2": JSON.stringify(initial) } });
+  assert.equal(w.Storage.clearAttempts(), true);
+  assert.deepEqual(Array.from(w.Storage.listAttempts(), a => a.id), ["pending", "rejected"]);
+  assert.equal(w.Storage.pendingCount(), 1);
+  assert.equal(w.Storage.rejectedCount(), 1);
+});
+
+test("a quota-safe fallback keeps a new result queued even if delivery metadata cannot be saved", async () => {
+  const legacy = Array.from({ length: 110 }, (_, i) => ({ ...attempt("old" + i), padding: "x".repeat(24000) }));
+  const w = load({ legacy });
+  const prototype = Object.getPrototypeOf(w.localStorage);
+  const original = prototype.setItem;
+  prototype.setItem = function(key, value) {
+    if (key === "ptl.delivery.v2") throw new Error("Metadata write failed");
+    return original.call(this, key, value);
+  };
+  assert.equal(w.Storage.saveAttempt(attempt("new")), true);
+  await w.Storage.syncPending();
+  assert.equal(w.Storage.getSaveStatus("new").state, "pending", "body remains durable with conservative pending status");
+  assert.equal(w.Storage.listAttempts().length, 111);
+  prototype.setItem = original;
+  await w.Storage.syncPending();
+  assert.equal(w.Storage.pendingCount(), 0);
 });
 
 test("429 and server failures remain pending for later retry", async () => {

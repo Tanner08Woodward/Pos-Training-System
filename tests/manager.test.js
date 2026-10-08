@@ -19,15 +19,15 @@ function record(mode) {
   };
 }
 
-function load(attempt, { remote = false } = {}) {
+function load(attempt, { remote = false, deliveryStatus = "sent", fetch } = {}) {
   const html = fs.readFileSync(path.join(ROOT, "manager.html"), "utf8");
   const w = new JSDOM(html.replace(/<script[\s\S]*?<\/script>/g, ""), { url: "https://test.local/manager.html", runScripts: "outside-only" }).window;
   windows.push(w);
   w.scrollTo = () => {};
   w.console.warn = () => {};
   w.AppConfig = remote ? { supabaseUrl: "https://test.supabase.co", supabasePublishableKey: "sb_publishable_test" } : {};
-  w.fetch = async () => ({ ok: false, status: 401, text: async () => JSON.stringify({ message: "Invalid API key " + payload }) });
-  w.localStorage.setItem("ptl.records.v2", JSON.stringify([{ attempt, status: "sent", error: null }]));
+  w.fetch = fetch || (async () => ({ ok: false, status: 401, text: async () => JSON.stringify({ message: "Invalid API key " + payload }) }));
+  w.localStorage.setItem("ptl.records.v2", JSON.stringify([{ attempt, status: deliveryStatus, error: null }]));
   if (remote) w.sessionStorage.setItem("ptl.managerCode", "test-only-code");
   const scripts = [...html.matchAll(/<script(?: src="([^"]+)")?>([\s\S]*?)<\/script>/g)];
   for (const [, src, inline] of scripts) {
@@ -71,4 +71,43 @@ test("database failure shows a prominent escaped device-only warning", async () 
   assert.ok(warning);
   assert.match(warning.textContent, /Device-only results.*other devices are missing/);
   assert.equal(w.document.querySelectorAll("#app img, #app [onerror]").length, 0);
+});
+
+test("manager resend button recovers rejected results and refreshes the dashboard", async () => {
+  const calls = [];
+  const fetch = async (url, opts) => {
+    calls.push(url);
+    return { ok: true, status: 200, text: async () => JSON.stringify(url.endsWith("save_attempt") ? "test" : []) };
+  };
+  const w = load(record("lesson"), { remote: true, deliveryStatus: "rejected", fetch });
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const retry = w.document.getElementById("retry");
+  assert.ok(retry);
+  retry.click();
+  assert.equal(retry.disabled, true);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(w.Storage.rejectedCount(), 0);
+  assert.equal(w.Storage.getSaveStatus("test").state, "sent");
+  assert.equal(w.document.getElementById("retry"), null);
+  assert.ok(calls.some(url => url.endsWith("save_attempt")));
+});
+
+test("manager detail rendering works without Object.hasOwn", () => {
+  const w = load(record("challenge"));
+  w.Object.hasOwn = undefined;
+  w.document.querySelector(".person[data-id]").click();
+  w.document.querySelector("[data-attempt]").click();
+  assertSafe(w);
+});
+
+test("shared delete confirmation explains unsent results and later uploads", async () => {
+  const fetch = async () => ({ ok: true, status: 200, text: async () => "[]" });
+  const w = load(record("challenge"), { remote: true, fetch });
+  await new Promise(resolve => setTimeout(resolve, 0));
+  let confirmation;
+  w.confirm = message => { confirmation = message; return false; };
+  w.document.getElementById("clear").click();
+  assert.match(confirmation, /Pending and rejected results stay/);
+  assert.match(confirmation, /other devices may upload later and reappear/);
+  assert.equal(w.Storage.listAttempts().length, 1, "cancelling deletes nothing");
 });

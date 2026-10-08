@@ -185,7 +185,7 @@
       slow: "Slower than the goal time",
       missed_change: "Misses when the customer changes their mind",
     };
-    const problem = code => Object.hasOwn(PROBLEMS, code) ? PROBLEMS[code] : code;
+    const problem = code => Object.prototype.hasOwnProperty.call(PROBLEMS, code) ? PROBLEMS[code] : code;
 
     // Which lesson helps with which problem.
     const PRACTICE = {
@@ -407,13 +407,20 @@
           <h2>Data</h2>
           <p class="sub">${SOURCE === "database" ? "Results from every device (shared database)." : "Results saved on this device."}</p>
           <button class="btn gray small" id="export">Download results (JSON)</button>
-          <button class="btn red small" id="clear">Delete all results</button>
+          ${Storage.rejectedCount() ? `<button class="btn gray small" id="retry">Resend rejected results from this device</button>` : ""}
+          <button class="btn red small" id="clear">${SOURCE === "database" ? "Delete shared results" : "Remove sent results from this device"}</button>
           ${SOURCE === "database" ? `<button class="btn gray small" id="signout">Sign out</button>` : ""}
         </section>`;
 
       app.querySelectorAll("[data-id]").forEach(el => el.onclick = () => showTrainee(el.dataset.id));
       document.getElementById("export").onclick = exportJSON;
       document.getElementById("clear").onclick = clearAll;
+      const retry = document.getElementById("retry");
+      if (retry) retry.onclick = async () => {
+        retry.disabled = true;
+        try { await Storage.retryRejected(); await load(); }
+        catch (err) { alert("Couldn't resend: " + err.message); retry.disabled = false; }
+      };
       const so = document.getElementById("signout");
       if (so) so.onclick = () => { setCode(null); load(); };
       window.scrollTo(0, 0);
@@ -622,11 +629,13 @@
     }
 
     async function clearAll() {
-      const where = SOURCE === "database" ? "from EVERY device (shared database)" : "on this device";
-      if (!confirm(`Delete ALL training results ${where}? This can't be undone.`)) return;
+      const message = SOURCE === "database"
+        ? "Delete results currently in the shared database and remove sent results from this device? This can't be undone. Pending and rejected results stay on this device. Unsent results on this or other devices may upload later and reappear."
+        : "Remove sent results from this device? Pending and rejected results will be kept. This can't be undone.";
+      if (!confirm(message)) return;
       try {
         if (SOURCE === "database") await Storage.clearAllAttempts(getCode());
-        Storage.clearAttempts();
+        if (!Storage.clearAttempts()) throw new Error("Couldn't update this device's saved results.");
         load();
       } catch (err) {
         alert("Couldn't delete: " + err.message);

@@ -15,9 +15,10 @@
 var Storage = (() => {
   const KEYS = {
     trainee: "ptl.trainee.v1",
-    attempts: "ptl.attempts.v1", // legacy data, retained as a migration backup
+    attempts: "ptl.attempts.v1", // old tabs and quota-safe migration fallback
     pending: "ptl.pending.v1",
     records: "ptl.records.v2",  // attempt + delivery state, saved together
+    delivery: "ptl.delivery.v2", // small status map when a full v2 copy won't fit
   };
 
   // Browsers can block storage (private mode, settings). The register and
@@ -76,19 +77,55 @@ var Storage = (() => {
     return data;
   }
 
-  // Older versions wrote attempts and their queue separately. Keep the old
-  // keys as a backup, but use only this single record list after migration.
-  // Re-send old attempts: save_attempt is idempotent by attempt id, and a
-  // missing old queue entry is not proof an attempt reached the database.
+  // Read both formats: an older tab can still write v1 after v2 exists.
+  // The fallback stores the original bodies once and a small delivery map.
+  // Missing delivery metadata always means pending, so losing a status write
+  // cannot strand a newly saved attempt outside the retry queue.
   function records() {
-    const current = read(KEYS.records, null);
-    if (Array.isArray(current)) return current;
+    const current = read(KEYS.records, []);
+    const all = Array.isArray(current) ? current.slice() : [];
+    const ids = new Set(all.map(r => r.attempt.id));
     const old = read(KEYS.attempts, []);
-    const migrated = (Array.isArray(old) ? old : []).map(attempt => ({
-      attempt, status: "pending", error: null,
-    }));
-    write(KEYS.records, migrated);
-    return migrated;
+    const delivery = read(KEYS.delivery, {}) || {};
+    (Array.isArray(old) ? old : []).forEach(attempt => {
+      if (ids.has(attempt.id)) return;
+      ids.add(attempt.id);
+      const state = Object.prototype.hasOwnProperty.call(delivery, attempt.id) ? delivery[attempt.id] : null;
+      all.push({ attempt, status: state ? state.status : "pending", error: state ? state.error : null });
+    });
+    return all;
+  }
+
+  function remove(key) {
+    try { localStorage.removeItem(key); } catch (err) { console.warn("Storage cleanup failed:", key, err); }
+  }
+
+  let consolidationBlocked = false;
+  function persist(all) {
+    // Delete redundant copies only AFTER the complete merged v2 write succeeds.
+    // If quota prevents the copy, keep using the existing data in place.
+    if (!consolidationBlocked && write(KEYS.records, all)) {
+      remove(KEYS.attempts);
+      remove(KEYS.pending);
+      remove(KEYS.delivery);
+      return { attemptsSaved: true, statesSaved: true };
+    }
+    // Do not retry the expensive full-copy migration for every tap/status
+    // on a full device. A new page load can try consolidation again.
+    consolidationBlocked = true;
+    const existing = read(KEYS.records, null);
+    const ids = new Set(Array.isArray(existing) ? existing.map(r => r.attempt.id) : []);
+    if (Array.isArray(existing) && !write(KEYS.records, all.filter(r => ids.has(r.attempt.id)))) {
+      return { attemptsSaved: false, statesSaved: false };
+    }
+    const legacy = all.filter(r => !ids.has(r.attempt.id));
+    if (!write(KEYS.attempts, legacy.map(r => r.attempt))) return { attemptsSaved: false, statesSaved: false };
+    const delivery = Object.create(null);
+    legacy.forEach(r => {
+      if (r.status !== "pending" || r.error) delivery[r.attempt.id] = { status: r.status, error: r.error };
+    });
+    const statesSaved = write(KEYS.delivery, delivery);
+    return { attemptsSaved: true, statesSaved };
   }
 
   const notices = new Set();
@@ -108,7 +145,7 @@ var Storage = (() => {
     if (!record) return false;
     record.status = status;
     record.error = error;
-    const ok = write(KEYS.records, all);
+    const ok = persist(all).statesSaved;
     refreshNotices();
     return ok;
   }
@@ -174,6 +211,18 @@ var Storage = (() => {
     return records().filter(r => r.status === "rejected").length;
   }
 
+  // Explicit recovery after a server/configuration issue has been corrected.
+  // Rejected attempts are not retried automatically on every page load.
+  async function retryRejected() {
+    const all = records();
+    all.forEach(r => {
+      if (r.status === "rejected") { r.status = "pending"; r.error = null; }
+    });
+    if (!persist(all).statesSaved) throw new Error("Couldn't save the retry state on this device. Download results before clearing browser data.");
+    refreshNotices();
+    return syncPending();
+  }
+
   // Manager: all attempts from every device (needs the manager code).
   async function fetchAllAttempts(code) {
     return rpc("manager_attempts", { p_code: code });
@@ -204,7 +253,7 @@ var Storage = (() => {
   function saveAttempt(attempt) {
     const all = records();
     if (!all.some(r => r.attempt.id === attempt.id)) all.push({ attempt, status: "pending", error: null });
-    const ok = write(KEYS.records, all);
+    const ok = persist(all).attemptsSaved;
     if (ok) unsaved.delete(attempt.id); else unsaved.add(attempt.id);
     refreshNotices();
     if (ok && remoteEnabled) syncPending();
@@ -212,16 +261,19 @@ var Storage = (() => {
   }
 
   function clearAttempts() {
-    const ok = write(KEYS.records, []);
+    const all = records();
+    // A shared-database clear must not discard this device's unsent work.
+    const ok = persist(all.filter(r => r.status !== "sent")).statesSaved;
     if (ok) {
-      write(KEYS.pending, []);
-      write(KEYS.attempts, []);
       unsaved.clear();
       refreshNotices();
     }
     return ok;
   }
 
+  // Consolidate once on page load, using the old format in place if quota
+  // blocks migration. Later reads still pick up results from older open tabs.
+  persist(records());
   // Try to send anything left over from last time (e.g. offline).
   if (remoteEnabled) setTimeout(syncPending, 0);
   window.addEventListener("online", syncPending);
@@ -229,7 +281,7 @@ var Storage = (() => {
   return {
     getTrainee, setTrainee,
     listAttempts, saveAttempt, clearAttempts,
-    remoteEnabled, syncPending, pendingCount, rejectedCount, getSaveStatus, showSaveStatus,
+    remoteEnabled, syncPending, pendingCount, rejectedCount, retryRejected, getSaveStatus, showSaveStatus,
     fetchAllAttempts, clearAllAttempts,
   };
 })();
